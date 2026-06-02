@@ -49,9 +49,8 @@ def get_health_score(valore_attuale, baseline, limite, is_max_limit=True):
 # =========================================================
 # MOTORE DATI: IBRIDO (CLOUD / EDGE)
 # =========================================================
-@st.cache_data(ttl=300) # Aggiorna la cache ogni 5 minuti per non sovraccaricare il DB
+@st.cache_data(ttl=300) 
 def load_data():
-    # 1. Tenta la connessione al Cloud Supabase (se le chiavi sono nei secrets di Streamlit)
     try:
         from supabase import create_client, Client
         url = st.secrets["SUPABASE_URL"]
@@ -64,18 +63,15 @@ def load_data():
         
         return pd.DataFrame(res_ro.data), pd.DataFrame(res_uf.data), pd.DataFrame(res_nas.data), "☁️ Cloud Supabase"
     
-    # 2. Fallback in caso di errore o esecuzione su PC locale senza chiavi
-    except Exception:
+    except Exception as e:
+        # Fallback locale (a prova di crash se il file è vuoto)
         print(f"Tentativo Cloud Fallito: {e}")
-	conn = sqlite3.connect(DB_NAME)
-        # Assicurati che le tabelle esistano se il DB è vuoto
-        conn.execute('''CREATE TABLE IF NOT EXISTS storico_ro (timestamp INTEGER PRIMARY KEY)''')
-        
+        conn = sqlite3.connect(DB_NAME)
         try:
             df_ro = pd.read_sql_query("SELECT * FROM storico_ro ORDER BY timestamp ASC", conn)
             df_uf = pd.read_sql_query("SELECT * FROM storico_uf ORDER BY timestamp ASC", conn)
             df_nas = pd.read_sql_query("SELECT * FROM storico_nastec ORDER BY timestamp ASC", conn)
-        except Exception:
+        except Exception: # <-- DEVE ESSERE COSI'
             df_ro, df_uf, df_nas = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         
         conn.close()
