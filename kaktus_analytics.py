@@ -66,7 +66,8 @@ def load_data():
     
     # 2. Fallback in caso di errore o esecuzione su PC locale senza chiavi
     except Exception:
-        conn = sqlite3.connect(DB_NAME)
+        print(f"Tentativo Cloud Fallito: {e}")
+	conn = sqlite3.connect(DB_NAME)
         # Assicurati che le tabelle esistano se il DB è vuoto
         conn.execute('''CREATE TABLE IF NOT EXISTS storico_ro (timestamp INTEGER PRIMARY KEY)''')
         
@@ -74,7 +75,7 @@ def load_data():
             df_ro = pd.read_sql_query("SELECT * FROM storico_ro ORDER BY timestamp ASC", conn)
             df_uf = pd.read_sql_query("SELECT * FROM storico_uf ORDER BY timestamp ASC", conn)
             df_nas = pd.read_sql_query("SELECT * FROM storico_nastec ORDER BY timestamp ASC", conn)
-        except sqlite3.OperationalError:
+        except Exception:
             df_ro, df_uf, df_nas = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         
         conn.close()
