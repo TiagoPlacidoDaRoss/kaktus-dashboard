@@ -47,7 +47,7 @@ def get_health_score(valore_attuale, baseline, limite, is_max_limit=True):
     return max(0, min(100, score))
 
 # =========================================================
-# MOTORE DATI: IBRIDO (CLOUD / EDGE)
+# MOTORE DATI: IBRIDO (CLOUD / EDGE) CON PAGINAZIONE
 # =========================================================
 @st.cache_data(ttl=300) 
 def load_data():
@@ -57,11 +57,33 @@ def load_data():
         key = st.secrets["SUPABASE_KEY"]
         supabase: Client = create_client(url, key)
         
-        res_ro = supabase.table("storico_ro").select("*").order("timestamp").execute()
-        res_uf = supabase.table("storico_uf").select("*").order("timestamp").execute()
-        res_nas = supabase.table("storico_nastec").select("*").order("timestamp").execute()
+        # Funzione interna per scaricare tabelle immense superando il limite di 1000 righe
+        def fetch_all(table_name):
+            all_data = []
+            offset = 0
+            limit = 1000
+            while True:
+                # Richiede un blocco di dati specificando il range (es. da 0 a 999, poi da 1000 a 1999...)
+                res = supabase.table(table_name).select("*").order("timestamp").range(offset, offset + limit - 1).execute()
+                
+                if not res.data:
+                    break  # Se la pagina è vuota, abbiamo finito
+                    
+                all_data.extend(res.data)
+                
+                if len(res.data) < limit:
+                    break  # Se ha restituito meno di 1000 righe, era l'ultima pagina
+                    
+                offset += limit
+                
+            return all_data
+
+        # Scarica tutti i dati paginati
+        df_ro = pd.DataFrame(fetch_all("storico_ro"))
+        df_uf = pd.DataFrame(fetch_all("storico_uf"))
+        df_nas = pd.DataFrame(fetch_all("storico_nastec"))
         
-        return pd.DataFrame(res_ro.data), pd.DataFrame(res_uf.data), pd.DataFrame(res_nas.data), "☁️ Cloud Supabase"
+        return df_ro, df_uf, df_nas, "☁️ Cloud Supabase"
     
     except Exception as e:
         # Fallback locale (a prova di crash se il file è vuoto)
@@ -71,7 +93,7 @@ def load_data():
             df_ro = pd.read_sql_query("SELECT * FROM storico_ro ORDER BY timestamp ASC", conn)
             df_uf = pd.read_sql_query("SELECT * FROM storico_uf ORDER BY timestamp ASC", conn)
             df_nas = pd.read_sql_query("SELECT * FROM storico_nastec ORDER BY timestamp ASC", conn)
-        except Exception: # <-- DEVE ESSERE COSI'
+        except Exception: 
             df_ro, df_uf, df_nas = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         
         conn.close()
