@@ -63,22 +63,15 @@ def load_data():
             offset = 0
             limit = 1000
             while True:
-                # Richiede un blocco di dati specificando il range (es. da 0 a 999, poi da 1000 a 1999...)
                 res = supabase.table(table_name).select("*").order("timestamp").range(offset, offset + limit - 1).execute()
-                
                 if not res.data:
-                    break  # Se la pagina è vuota, abbiamo finito
-                    
+                    break 
                 all_data.extend(res.data)
-                
                 if len(res.data) < limit:
-                    break  # Se ha restituito meno di 1000 righe, era l'ultima pagina
-                    
+                    break 
                 offset += limit
-                
             return all_data
 
-        # Scarica tutti i dati paginati
         df_ro = pd.DataFrame(fetch_all("storico_ro"))
         df_uf = pd.DataFrame(fetch_all("storico_uf"))
         df_nas = pd.DataFrame(fetch_all("storico_nastec"))
@@ -86,7 +79,6 @@ def load_data():
         return df_ro, df_uf, df_nas, "☁️ Cloud Supabase"
     
     except Exception as e:
-        # Fallback locale (a prova di crash se il file è vuoto)
         print(f"Tentativo Cloud Fallito: {e}")
         conn = sqlite3.connect(DB_NAME)
         try:
@@ -136,7 +128,6 @@ if __name__ == '__main__':
         pi_perm = (df_ro['ait002'] / 1000.0) * 0.35 
         delta_pi = pi_avg - pi_perm
         
-        # Gestione retroattiva di vecchi dati mancanti
         if 'pit004' not in df_ro.columns: df_ro['pit004'] = 0.0
         p_out = np.where(df_ro['pit004'] > 0, df_ro['pit004'], df_ro['pit003'] - 1.5)
         
@@ -145,7 +136,6 @@ if __name__ == '__main__':
         df_ro['ndp'] = np.where(df_ro['ndp'] <= 0.1, 0.1, df_ro['ndp']) 
         
         df_ro['perm_norm'] = df_ro['fit001'] / (df_ro['ndp'] * df_ro['tcf'])
-        # Filtro rumore valvole/PID (Media Mobile a 24 letture)
         df_ro['perm_norm_smooth'] = df_ro['perm_norm'].rolling(window=24, min_periods=1).mean()
         
         df_ro['sp'] = 100 - df_ro['salt_rejection']
@@ -154,6 +144,9 @@ if __name__ == '__main__':
         
         if 'dp_cf01' not in df_ro.columns: df_ro['dp_cf01'] = df_ro['pit001'] - df_ro['pit002']
         if 'dp_ro' not in df_ro.columns: df_ro['dp_ro'] = df_ro['pit003'] - df_ro['pit004']
+        
+        # SMUSSAMENTO ΔP RO per regressione lineare stabile
+        df_ro['dp_ro_smooth'] = df_ro['dp_ro'].rolling(window=24, min_periods=1).mean()
 
         latest_ro, baseline_ro = df_ro.iloc[-1], df_ro.iloc[0]
         latest_uf, baseline_uf = df_uf.iloc[-1], df_uf.iloc[0]
@@ -219,22 +212,24 @@ if __name__ == '__main__':
         elif impianto_selezionato == "🔮 Manutenzione Predittiva":
             st.header("🔮 Analisi Predittiva e Stato di Salute")
             
-            # Limiti
+            # Limiti (Inclusa Regola 15% per DP RO)
             L_PERM_RO = baseline_ro['perm_norm_smooth'] * 0.85 
             L_DPCF01 = 1.0 
             L_TMP_UF = 1.5 
+            L_DPRO = baseline_ro['dp_ro_smooth'] * 1.15 # Il limite è +15% rispetto alla baseline
             
-            tab_sum, tab_ro, tab_uf, tab_cf, tab_pump = st.tabs([
-                "📊 Cruscotto Salute", "💧 Membrane RO", "🟢 Membrane UF", "🗑️ Cartucce CF01", "⛨ Diagnostica Motori"
+            tab_sum, tab_ro, tab_dp, tab_uf, tab_cf, tab_pump = st.tabs([
+                "📊 Cruscotto Salute", "💧 Membrane (Perm)", "🧱 Fouling Spaziatori (ΔP)", "🟢 Membrane UF", "🗑️ Cartucce CF01", "⛨ Diagnostica Motori"
             ])
             
             with tab_sum:
                 st.subheader("Stato di Salute Asset (Health Score)")
                 score_ro = get_health_score(latest_ro['perm_norm_smooth'], baseline_ro['perm_norm_smooth'], L_PERM_RO, is_max_limit=False)
+                score_dp = get_health_score(latest_ro['dp_ro_smooth'], baseline_ro['dp_ro_smooth'], L_DPRO, is_max_limit=True)
                 score_cf = get_health_score(latest_ro['dp_cf01'], baseline_ro['dp_cf01'], L_DPCF01)
                 score_uf = get_health_score(latest_uf['uftmp'], baseline_uf['uftmp'], L_TMP_UF)
                 
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3, col4 = st.columns(4)
                 def render_health_card(col, titolo, score, giorni):
                     col.markdown(f"**{titolo}**")
                     color = "green" if score > 70 else ("orange" if score > 30 else "red")
@@ -244,12 +239,14 @@ if __name__ == '__main__':
                     col.progress(int(score))
                 
                 g_ro = stima_giorni_rimanenti(df_ro, 'perm_norm_smooth', L_PERM_RO, is_max_limit=False)
+                g_dp = stima_giorni_rimanenti(df_ro, 'dp_ro_smooth', L_DPRO, is_max_limit=True)
                 g_cf = stima_giorni_rimanenti(df_ro[df_ro['dp_cf01'] > 0.05], 'dp_cf01', L_DPCF01)
                 g_uf = stima_giorni_rimanenti(df_uf, 'uftmp', L_TMP_UF)
                 
                 render_health_card(col1, "Membrane RO (ASTM)", score_ro, g_ro)
-                render_health_card(col2, "Filtro a Cartucce CF01", score_cf, g_cf)
-                render_health_card(col3, "Membrane UF (TMP)", score_uf, g_uf)
+                render_health_card(col2, "Spaziatori RO (ΔP)", score_dp, g_dp)
+                render_health_card(col3, "Filtro Cartucce CF01", score_cf, g_cf)
+                render_health_card(col4, "Membrane UF (TMP)", score_uf, g_uf)
                 
             with tab_ro:
                 st.subheader("Fouling Forecast (Filtrazione ASTM Smooth)")
@@ -267,6 +264,31 @@ if __name__ == '__main__':
                         fig.add_trace(go.Scatter(x=pd.to_datetime(df_ro['date_str']), y=y, name='Trend Reale'))
                         fig.add_trace(go.Scatter(x=[datetime.datetime.fromtimestamp(ts) for ts in fut_x], y=slope*fut_x+intercept, line=dict(dash='dash'), name='Previsione'))
                         fig.add_hline(y=L_PERM_RO, line_color='red', annotation_text="Limite CIP (85%)")
+                        st.plotly_chart(fig, use_container_width=True)
+
+            with tab_dp:
+                st.subheader("Diagnostica Spaziatori: Resistenza Idraulica (ΔP RO)")
+                st.markdown("Questa analisi intercetta ostruzioni fisiche tra i fogli della membrana. Un rapido aumento indica Scaling inorganico (se nell'ultimo stadio) o Fouling biologico/particellare (se nel primo stadio).")
+                if g_dp is not None:
+                    col_a, col_b = st.columns([1, 2])
+                    with col_a:
+                        st.metric("ΔP Attuale", f"{latest_ro['dp_ro_smooth']:.2f} bar", f"{latest_ro['dp_ro_smooth'] - baseline_ro['dp_ro_smooth']:+.2f} bar", delta_color="inverse")
+                        st.caption(f"Baseline (Pulito): {baseline_ro['dp_ro_smooth']:.2f} bar<br>Limite (+15%): {L_DPRO:.2f} bar", unsafe_allow_html=True)
+                        if g_dp == 999: 
+                            st.success("Situazione Idraulica Stabile")
+                        else: 
+                            st.error(f"Attenzione: Rischio Telescoping! Lavaggio (CIP) stimato tra **{g_dp}** giorni.")
+                    with col_b:
+                        x, y = df_ro['timestamp'].values, df_ro['dp_ro_smooth'].values
+                        slope, intercept = np.polyfit(x, y, 1)
+                        fut_x = np.linspace(x[0], x[-1] + (30 * 86400), 100)
+                        fig = go.Figure()
+                        fig.add_trace(go.Scatter(x=pd.to_datetime(df_ro['date_str']), y=y, name='ΔP Reale (Media 24h)'))
+                        if slope > 0:
+                            fig.add_trace(go.Scatter(x=[datetime.datetime.fromtimestamp(ts) for ts in fut_x], y=slope*fut_x+intercept, line=dict(dash='dash'), name='Previsione Fouling'))
+                        fig.add_hline(y=L_DPRO, line_color='red', annotation_text="Limite Rischio CIP (+15%)")
+                        fig.add_hline(y=baseline_ro['dp_ro_smooth'], line_color='green', line_dash='dot', annotation_text="Baseline Installazione")
+                        fig.update_layout(yaxis_title="Salto di Pressione (bar)")
                         st.plotly_chart(fig, use_container_width=True)
 
             with tab_uf:
