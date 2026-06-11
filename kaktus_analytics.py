@@ -215,7 +215,7 @@ if __name__ == '__main__':
             if len(date_range) == 2:
                 df_filtered = df_merged[(df_merged['DataOra'].dt.date >= date_range[0]) & (df_merged['DataOra'].dt.date <= date_range[1])]
                 cols = sorted([c for c in df_filtered.columns if c not in ['timestamp', 'date_str', 'DataOra']])
-                selected_cols = st.multiselect("Scegli parametri:", options=cols, default=['pit003'])
+                selected_cols = st.multiselect("Scegli parametri:", options=cols, default=['pit003_RO'])
                 if selected_cols: st.plotly_chart(px.line(df_filtered, x='DataOra', y=selected_cols, markers=True), use_container_width=True)
 
         # ---------------------------------------------------------
