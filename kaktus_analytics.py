@@ -23,10 +23,7 @@ INVERTER_MAP = {
     'NAS13': 'Pompa Travaso TK11-3'
 }
 
-# --- STORICO SOSTITUZIONI ASSET (RESET BASELINE PREDITTIVA) ---
-PUMP_INSTALL_DATES = {
-    # 'NAS5': '2026-05-27'
-}
+PUMP_INSTALL_DATES = {}
 
 # =========================================================
 # HELPER PREDITTIVI
@@ -57,7 +54,6 @@ def load_data():
         key = st.secrets["SUPABASE_KEY"]
         supabase: Client = create_client(url, key)
         
-        # Funzione interna per scaricare tabelle immense superando il limite di 1000 righe
         def fetch_all(table_name):
             all_data = []
             offset = 0
@@ -113,13 +109,12 @@ if __name__ == '__main__':
     st.sidebar.caption(f"Origine Dati: {source_msg}")
 
     if df_ro.empty:
-        st.info("Nessun dato nel database. Avvia il bot downloader o attendi la ricezione dei log...")
+        st.info("Nessun dato RO nel database. Avvia il bot downloader o attendi la ricezione dei log...")
     else:
         # =================================================================
         # NORMALIZZAZIONE AVANZATA ASTM D4516 E MEDIA MOBILE
         # =================================================================
         df_ro['tcf'] = np.where(df_ro['tit001'] > 0, np.exp(2640 * (1 / 298.15 - 1 / (df_ro['tit001'] + 273.15))), 1.0)
-        
         Y = df_ro['recovery'] / 100.0
         Y = np.clip(Y, 0.01, 0.95) 
         FCS = -np.log(1 - Y) / Y
@@ -145,12 +140,17 @@ if __name__ == '__main__':
         if 'dp_cf01' not in df_ro.columns: df_ro['dp_cf01'] = df_ro['pit001'] - df_ro['pit002']
         if 'dp_ro' not in df_ro.columns: df_ro['dp_ro'] = df_ro['pit003'] - df_ro['pit004']
         
-        # SMUSSAMENTO ΔP RO per regressione lineare stabile
         df_ro['dp_ro_smooth'] = df_ro['dp_ro'].rolling(window=24, min_periods=1).mean()
 
         latest_ro, baseline_ro = df_ro.iloc[-1], df_ro.iloc[0]
-        latest_uf, baseline_uf = df_uf.iloc[-1], df_uf.iloc[0]
         
+        # RETE DI SICUREZZA PER UF VUOTA
+        if not df_uf.empty:
+            latest_uf, baseline_uf = df_uf.iloc[-1], df_uf.iloc[0]
+        else:
+            latest_uf = pd.Series({'fit001': 0.0, 'uftmp': 0.0, 'dpscf': 0.0})
+            baseline_uf = latest_uf
+
         st.title("Sistema di Monitoraggio & Predizione - Capo Verde")
         
         # ---------------------------------------------------------
@@ -166,8 +166,8 @@ if __name__ == '__main__':
             tab1, tab2 = st.tabs(["Grafici di Tendenza", "Dati Tabellari"])
             with tab1:
                 fig_perm = go.Figure()
-                fig_perm.add_trace(go.Scatter(x=pd.to_datetime(df_ro['date_str']), y=df_ro['perm_norm'], mode='markers+lines', name='Dato Orario (Rumore Idraulico)', line=dict(color='lightblue', width=1)))
-                fig_perm.add_trace(go.Scatter(x=pd.to_datetime(df_ro['date_str']), y=df_ro['perm_norm_smooth'], mode='lines', name='Trend Reale (Media 24h)', line=dict(color='darkblue', width=4)))
+                fig_perm.add_trace(go.Scatter(x=pd.to_datetime(df_ro['date_str']), y=df_ro['perm_norm'], mode='markers+lines', name='Dato Orario', line=dict(color='lightblue', width=1)))
+                fig_perm.add_trace(go.Scatter(x=pd.to_datetime(df_ro['date_str']), y=df_ro['perm_norm_smooth'], mode='lines', name='Trend (Media 24h)', line=dict(color='darkblue', width=4)))
                 fig_perm.update_layout(title='Fouling: Indice di Permeabilità ASTM (Media Mobile)', yaxis_title='Permeabilità (m³/h/bar)')
                 st.plotly_chart(fig_perm, use_container_width=True)
                 
@@ -182,41 +182,49 @@ if __name__ == '__main__':
         # ---------------------------------------------------------
         elif impianto_selezionato == "🟢 Ultrafiltrazione (UF)":
             st.header("Analisi Ultrafiltrazione")
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Flusso UF", f"{latest_uf['fit001']:.2f} m³/h", f"{latest_uf['fit001'] - baseline_uf['fit001']:+.2f}")
-            c2.metric("TMP UF", f"{latest_uf['uftmp']:.2f} bar", f"{latest_uf['uftmp'] - baseline_uf['uftmp']:+.2f}", delta_color="inverse")
-            c3.metric("ΔP Filtro", f"{latest_uf['dpscf']:.2f} bar", f"{latest_uf['dpscf'] - baseline_uf['dpscf']:+.2f}", delta_color="inverse")
-            st.plotly_chart(px.line(df_uf, x='date_str', y=['uftmp', 'dpscf'], markers=True, title="Trend Pressioni UF"), use_container_width=True)
+            if df_uf.empty:
+                st.warning("Nessun dato di Ultrafiltrazione registrato finora (Impianto in Stand-by o dati non ancora ricevuti).")
+            else:
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Flusso UF", f"{latest_uf['fit001']:.2f} m³/h", f"{latest_uf['fit001'] - baseline_uf['fit001']:+.2f}")
+                c2.metric("TMP UF", f"{latest_uf['uftmp']:.2f} bar", f"{latest_uf['uftmp'] - baseline_uf['uftmp']:+.2f}", delta_color="inverse")
+                c3.metric("ΔP Filtro", f"{latest_uf['dpscf']:.2f} bar", f"{latest_uf['dpscf'] - baseline_uf['dpscf']:+.2f}", delta_color="inverse")
+                st.plotly_chart(px.line(df_uf, x='date_str', y=['uftmp', 'dpscf'], markers=True, title="Trend Pressioni UF"), use_container_width=True)
 
         # ---------------------------------------------------------
         elif impianto_selezionato == "⚡ Inverter & Pompe":
             st.header("Stato Flotta Inverter Nastec")
-            latest_ts = df_nas['timestamp'].max()
-            df_nas_latest = df_nas[df_nas['timestamp'] == latest_ts].copy()
-            df_nas_latest['Nome Pompa'] = df_nas_latest['nas_id'].map(INVERTER_MAP)
-            st.dataframe(df_nas_latest[['Nome Pompa', 'status', 'freq', 'current', 'power', 'cosphi']], use_container_width=True)
+            if df_nas.empty:
+                st.warning("Nessun dato inverter registrato finora.")
+            else:
+                latest_ts = df_nas['timestamp'].max()
+                df_nas_latest = df_nas[df_nas['timestamp'] == latest_ts].copy()
+                df_nas_latest['Nome Pompa'] = df_nas_latest['nas_id'].map(INVERTER_MAP)
+                st.dataframe(df_nas_latest[['Nome Pompa', 'status', 'freq', 'current', 'power', 'cosphi']], use_container_width=True)
 
         # ---------------------------------------------------------
         elif impianto_selezionato == "📈 Grafici Personalizzati":
             st.header("Analisi Libera")
-            df_merged = pd.merge(df_ro, df_uf, on=['timestamp', 'date_str'], how='outer', suffixes=('_RO', '_UF'))
+            if not df_uf.empty:
+                df_merged = pd.merge(df_ro, df_uf, on=['timestamp', 'date_str'], how='outer', suffixes=('_RO', '_UF'))
+            else:
+                df_merged = df_ro.copy()
+                
             df_merged['DataOra'] = pd.to_datetime(df_merged['date_str'])
             date_range = st.date_input("Seleziona Intervallo:", value=[df_merged['DataOra'].min().date(), df_merged['DataOra'].max().date()])
             if len(date_range) == 2:
                 df_filtered = df_merged[(df_merged['DataOra'].dt.date >= date_range[0]) & (df_merged['DataOra'].dt.date <= date_range[1])]
                 cols = sorted([c for c in df_filtered.columns if c not in ['timestamp', 'date_str', 'DataOra']])
-                selected_cols = st.multiselect("Scegli parametri:", options=cols, default=['pit003_RO', 'pit004'])
+                selected_cols = st.multiselect("Scegli parametri:", options=cols, default=['pit003'])
                 if selected_cols: st.plotly_chart(px.line(df_filtered, x='DataOra', y=selected_cols, markers=True), use_container_width=True)
 
         # ---------------------------------------------------------
         elif impianto_selezionato == "🔮 Manutenzione Predittiva":
             st.header("🔮 Analisi Predittiva e Stato di Salute")
             
-            # Limiti (Inclusa Regola 15% per DP RO)
             L_PERM_RO = baseline_ro['perm_norm_smooth'] * 0.85 
             L_DPCF01 = 1.0 
-            L_TMP_UF = 1.5 
-            L_DPRO = baseline_ro['dp_ro_smooth'] * 1.15 # Il limite è +15% rispetto alla baseline
+            L_DPRO = baseline_ro['dp_ro_smooth'] * 1.15 
             
             tab_sum, tab_ro, tab_dp, tab_uf, tab_cf, tab_pump = st.tabs([
                 "📊 Cruscotto Salute", "💧 Membrane (Perm)", "🧱 Fouling Spaziatori (ΔP)", "🟢 Membrane UF", "🗑️ Cartucce CF01", "⛨ Diagnostica Motori"
@@ -227,7 +235,15 @@ if __name__ == '__main__':
                 score_ro = get_health_score(latest_ro['perm_norm_smooth'], baseline_ro['perm_norm_smooth'], L_PERM_RO, is_max_limit=False)
                 score_dp = get_health_score(latest_ro['dp_ro_smooth'], baseline_ro['dp_ro_smooth'], L_DPRO, is_max_limit=True)
                 score_cf = get_health_score(latest_ro['dp_cf01'], baseline_ro['dp_cf01'], L_DPCF01)
-                score_uf = get_health_score(latest_uf['uftmp'], baseline_uf['uftmp'], L_TMP_UF)
+                
+                # Rete di sicurezza calcolo UF Score
+                if df_uf.empty or baseline_uf['uftmp'] == 0:
+                    score_uf = 100
+                    g_uf = 999
+                else:
+                    L_TMP_UF = 1.5 
+                    score_uf = get_health_score(latest_uf['uftmp'], baseline_uf['uftmp'], L_TMP_UF)
+                    g_uf = stima_giorni_rimanenti(df_uf, 'uftmp', L_TMP_UF)
                 
                 col1, col2, col3, col4 = st.columns(4)
                 def render_health_card(col, titolo, score, giorni):
@@ -241,7 +257,6 @@ if __name__ == '__main__':
                 g_ro = stima_giorni_rimanenti(df_ro, 'perm_norm_smooth', L_PERM_RO, is_max_limit=False)
                 g_dp = stima_giorni_rimanenti(df_ro, 'dp_ro_smooth', L_DPRO, is_max_limit=True)
                 g_cf = stima_giorni_rimanenti(df_ro[df_ro['dp_cf01'] > 0.05], 'dp_cf01', L_DPCF01)
-                g_uf = stima_giorni_rimanenti(df_uf, 'uftmp', L_TMP_UF)
                 
                 render_health_card(col1, "Membrane RO (ASTM)", score_ro, g_ro)
                 render_health_card(col2, "Spaziatori RO (ΔP)", score_dp, g_dp)
@@ -293,7 +308,9 @@ if __name__ == '__main__':
 
             with tab_uf:
                 st.subheader("Fouling Forecast: Membrane Ultrafiltrazione")
-                if g_uf is not None:
+                if df_uf.empty:
+                    st.info("In attesa di dati UF sufficienti per calcolare la previsione...")
+                elif g_uf is not None:
                     x, y = df_uf['timestamp'].values, df_uf['uftmp'].values
                     slope, intercept = np.polyfit(x, y, 1)
                     fut_x = np.linspace(x[0], x[-1] + (30 * 86400), 100)
@@ -319,63 +336,66 @@ if __name__ == '__main__':
 
             with tab_pump:
                 st.subheader("Diagnostica Elettromeccanica Pompe")
-                st.markdown("Valutazione incrociata dello sforzo meccanico (A/Hz) e della salute dello statore (Deriva Cosφ).")
-                
-                stats_pompe = []
-                for nas_id, nome_pompa in INVERTER_MAP.items():
-                    df_p = df_nas[(df_nas['nas_id'] == nas_id) & (df_nas['freq'] > 10)].copy()
+                if df_nas.empty:
+                    st.info("In attesa di dati Inverter sufficienti per la diagnostica...")
+                else:
+                    st.markdown("Valutazione incrociata dello sforzo meccanico (A/Hz) e della salute dello statore (Deriva Cosφ).")
                     
-                    if nas_id in PUMP_INSTALL_DATES:
-                        install_ts = pd.to_datetime(PUMP_INSTALL_DATES[nas_id]).timestamp()
-                        df_p = df_p[df_p['timestamp'] >= install_ts]
+                    stats_pompe = []
+                    for nas_id, nome_pompa in INVERTER_MAP.items():
+                        df_p = df_nas[(df_nas['nas_id'] == nas_id) & (df_nas['freq'] > 10)].copy()
                         
-                    if len(df_p) > 2:
-                        indice = df_p['current'].values / df_p['freq'].values
-                        base_idx = np.mean(indice[:3]) 
-                        latest_idx = np.mean(indice[-3:]) 
-                        
-                        cosphi_vals = df_p['cosphi'].values
-                        base_cos = np.mean(cosphi_vals[:3])
-                        latest_cos = np.mean(cosphi_vals[-3:])
-                        
-                        if base_idx > 0 and base_cos > 0:
-                            deg_mecc = ((latest_idx - base_idx) / base_idx) * 100
-                            deg_ele = ((latest_cos - base_cos) / base_cos) * 100 
+                        if nas_id in PUMP_INSTALL_DATES:
+                            install_ts = pd.to_datetime(PUMP_INSTALL_DATES[nas_id]).timestamp()
+                            df_p = df_p[df_p['timestamp'] >= install_ts]
                             
-                            stato_mecc = "🔴 Critico" if deg_mecc > 15 else ("🟡 Attenzione" if deg_mecc > 8 else "🟢 Ottimale")
-                            stato_ele = "🔴 Critico" if deg_ele < -10 else ("🟡 Attenzione" if deg_ele < -5 else "🟢 Ottimale")
+                        if len(df_p) > 2:
+                            indice = df_p['current'].values / df_p['freq'].values
+                            base_idx = np.mean(indice[:3]) 
+                            latest_idx = np.mean(indice[-3:]) 
                             
-                            nota = f" (Sostit. {PUMP_INSTALL_DATES[nas_id]})" if nas_id in PUMP_INSTALL_DATES else ""
-                            stats_pompe.append({
-                                "Pompa": nome_pompa + nota, 
-                                "Deriva Cosφ (Elettrica)": f"{deg_ele:+.1f}%", 
-                                "Stato Elettrico": stato_ele,
-                                "Degrado A/Hz (Meccanica)": f"{deg_mecc:+.1f}%", 
-                                "Stato Meccanico": stato_mecc
-                            })
-                
-                if stats_pompe:
-                    df_stats = pd.DataFrame(stats_pompe)
-                    st.dataframe(df_stats, use_container_width=True)
-                
-                st.markdown("---")
-                pompa_sel = st.selectbox("Seleziona pompa per dettaglio trend storico:", options=list(INVERTER_MAP.keys()), format_func=lambda x: f"{x} - {INVERTER_MAP[x]}")
-                df_p_plot = df_nas[(df_nas['nas_id'] == pompa_sel) & (df_nas['freq'] > 10)].copy()
-                
-                if pompa_sel in PUMP_INSTALL_DATES:
-                    install_ts = pd.to_datetime(PUMP_INSTALL_DATES[pompa_sel]).timestamp()
-                    df_p_plot = df_p_plot[df_p_plot['timestamp'] >= install_ts]
+                            cosphi_vals = df_p['cosphi'].values
+                            base_cos = np.mean(cosphi_vals[:3])
+                            latest_cos = np.mean(cosphi_vals[-3:])
+                            
+                            if base_idx > 0 and base_cos > 0:
+                                deg_mecc = ((latest_idx - base_idx) / base_idx) * 100
+                                deg_ele = ((latest_cos - base_cos) / base_cos) * 100 
+                                
+                                stato_mecc = "🔴 Critico" if deg_mecc > 15 else ("🟡 Attenzione" if deg_mecc > 8 else "🟢 Ottimale")
+                                stato_ele = "🔴 Critico" if deg_ele < -10 else ("🟡 Attenzione" if deg_ele < -5 else "🟢 Ottimale")
+                                
+                                nota = f" (Sostit. {PUMP_INSTALL_DATES[nas_id]})" if nas_id in PUMP_INSTALL_DATES else ""
+                                stats_pompe.append({
+                                    "Pompa": nome_pompa + nota, 
+                                    "Deriva Cosφ (Elettrica)": f"{deg_ele:+.1f}%", 
+                                    "Stato Elettrico": stato_ele,
+                                    "Degrado A/Hz (Meccanica)": f"{deg_mecc:+.1f}%", 
+                                    "Stato Meccanico": stato_mecc
+                                })
+                    
+                    if stats_pompe:
+                        df_stats = pd.DataFrame(stats_pompe)
+                        st.dataframe(df_stats, use_container_width=True)
+                    
+                    st.markdown("---")
+                    pompa_sel = st.selectbox("Seleziona pompa per dettaglio trend storico:", options=list(INVERTER_MAP.keys()), format_func=lambda x: f"{x} - {INVERTER_MAP[x]}")
+                    df_p_plot = df_nas[(df_nas['nas_id'] == pompa_sel) & (df_nas['freq'] > 10)].copy()
+                    
+                    if pompa_sel in PUMP_INSTALL_DATES:
+                        install_ts = pd.to_datetime(PUMP_INSTALL_DATES[pompa_sel]).timestamp()
+                        df_p_plot = df_p_plot[df_p_plot['timestamp'] >= install_ts]
 
-                if len(df_p_plot) > 0:
-                    df_p_plot['indice_coppia'] = df_p_plot['current'] / df_p_plot['freq']
-                    
-                    fig_coppia = px.line(df_p_plot, x=pd.to_datetime(df_p_plot['timestamp'], unit='s'), y='indice_coppia', markers=True, title=f"Sforzo Meccanico Relativo (A/Hz) - {INVERTER_MAP[pompa_sel]}")
-                    fig_coppia.update_layout(yaxis_title='A/Hz')
-                    st.plotly_chart(fig_coppia, use_container_width=True)
-                    
-                    fig_cosphi = px.line(df_p_plot, x=pd.to_datetime(df_p_plot['timestamp'], unit='s'), y='cosphi', markers=True, title=f"Salute Magnetica Statore (Cosφ) - {INVERTER_MAP[pompa_sel]}")
-                    baseline_c = df_p_plot['cosphi'].iloc[:3].mean()
-                    fig_cosphi.add_hline(y=baseline_c, line_dash="dash", line_color="green", annotation_text="Baseline Installazione")
-                    fig_cosphi.add_hline(y=baseline_c*0.9, line_dash="dot", line_color="red", annotation_text="Allarme (-10%)")
-                    fig_cosphi.update_layout(yaxis_title='Fattore di Potenza')
-                    st.plotly_chart(fig_cosphi, use_container_width=True)
+                    if len(df_p_plot) > 0:
+                        df_p_plot['indice_coppia'] = df_p_plot['current'] / df_p_plot['freq']
+                        
+                        fig_coppia = px.line(df_p_plot, x=pd.to_datetime(df_p_plot['timestamp'], unit='s'), y='indice_coppia', markers=True, title=f"Sforzo Meccanico Relativo (A/Hz) - {INVERTER_MAP[pompa_sel]}")
+                        fig_coppia.update_layout(yaxis_title='A/Hz')
+                        st.plotly_chart(fig_coppia, use_container_width=True)
+                        
+                        fig_cosphi = px.line(df_p_plot, x=pd.to_datetime(df_p_plot['timestamp'], unit='s'), y='cosphi', markers=True, title=f"Salute Magnetica Statore (Cosφ) - {INVERTER_MAP[pompa_sel]}")
+                        baseline_c = df_p_plot['cosphi'].iloc[:3].mean()
+                        fig_cosphi.add_hline(y=baseline_c, line_dash="dash", line_color="green", annotation_text="Baseline Installazione")
+                        fig_cosphi.add_hline(y=baseline_c*0.9, line_dash="dot", line_color="red", annotation_text="Allarme (-10%)")
+                        fig_cosphi.update_layout(yaxis_title='Fattore di Potenza')
+                        st.plotly_chart(fig_cosphi, use_container_width=True)
