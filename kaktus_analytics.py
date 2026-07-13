@@ -23,7 +23,9 @@ INVERTER_MAP = {
     'NAS13': 'Pompa Travaso TK11-3'
 }
 
-PUMP_INSTALL_DATES = {}
+PUMP_INSTALL_DATES = {
+    'NAS5': '2026-06-12'
+}
 
 # =========================================================
 # HELPER PREDITTIVI
