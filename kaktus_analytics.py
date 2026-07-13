@@ -101,7 +101,8 @@ if __name__ == '__main__':
         "🟢 Ultrafiltrazione (UF)", 
         "⚡ Inverter & Pompe", 
         "📈 Grafici Personalizzati",
-        "🔮 Manutenzione Predittiva"
+        "🔮 Manutenzione Predittiva",
+        "⚖️ Confronto Periodi"
     ])
     
     df_ro, df_uf, df_nas, source_msg = load_data()
@@ -215,7 +216,7 @@ if __name__ == '__main__':
             if len(date_range) == 2:
                 df_filtered = df_merged[(df_merged['DataOra'].dt.date >= date_range[0]) & (df_merged['DataOra'].dt.date <= date_range[1])]
                 cols = sorted([c for c in df_filtered.columns if c not in ['timestamp', 'date_str', 'DataOra']])
-                selected_cols = st.multiselect("Scegli parametri:", options=cols, default=['pit003_RO'])
+                selected_cols = st.multiselect("Scegli parametri:", options=cols, default=['pit003_RO'] if 'pit003_RO' in cols else (['pit003'] if 'pit003' in cols else []))
                 if selected_cols: st.plotly_chart(px.line(df_filtered, x='DataOra', y=selected_cols, markers=True), use_container_width=True)
 
         # ---------------------------------------------------------
@@ -399,3 +400,67 @@ if __name__ == '__main__':
                         fig_cosphi.add_hline(y=baseline_c*0.9, line_dash="dot", line_color="red", annotation_text="Allarme (-10%)")
                         fig_cosphi.update_layout(yaxis_title='Fattore di Potenza')
                         st.plotly_chart(fig_cosphi, use_container_width=True)
+
+        # ---------------------------------------------------------
+        elif impianto_selezionato == "⚖️ Confronto Periodi":
+            st.header("⚖️ Analisi Comparativa (A/B Test)")
+            st.markdown("Confronta le performance dell'impianto tra due intervalli di tempo (es. Prima e Dopo un lavaggio chimico, o confronto mensile).")
+
+            if not df_uf.empty:
+                df_merged = pd.merge(df_ro, df_uf, on=['timestamp', 'date_str'], how='outer', suffixes=('_RO', '_UF'))
+            else:
+                df_merged = df_ro.copy()
+            
+            df_merged['DataOra'] = pd.to_datetime(df_merged['date_str'])
+
+            # Metriche disponibili per il confronto
+            metriche_disp = {
+                "Permeabilità Normalizzata (Fouling RO)": "perm_norm_smooth",
+                "Salto di Pressione (ΔP RO)": "dp_ro_smooth",
+                "Consumo Specifico (SEC)": "sec",
+                "Reiezione Salina (%)": "sr_norm"
+            }
+            if not df_uf.empty:
+                metriche_disp["TMP Ultrafiltrazione"] = "uftmp"
+
+            kpi_sel = st.selectbox("📊 Seleziona il Parametro da analizzare:", list(metriche_disp.keys()))
+            col_kpi = metriche_disp[kpi_sel]
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader("📅 Periodo A (Riferimento)")
+                date_A = st.date_input("Date Periodo A:", value=[df_merged['DataOra'].min().date(), df_merged['DataOra'].min().date() + datetime.timedelta(days=7)], key='dA')
+            with col2:
+                st.subheader("📅 Periodo B (Analisi)")
+                date_B = st.date_input("Date Periodo B:", value=[df_merged['DataOra'].max().date() - datetime.timedelta(days=7), df_merged['DataOra'].max().date()], key='dB')
+
+            if len(date_A) == 2 and len(date_B) == 2:
+                # Filtra i dati per i due periodi
+                df_A = df_merged[(df_merged['DataOra'].dt.date >= date_A[0]) & (df_merged['DataOra'].dt.date <= date_A[1])].dropna(subset=[col_kpi])
+                df_B = df_merged[(df_merged['DataOra'].dt.date >= date_B[0]) & (df_merged['DataOra'].dt.date <= date_B[1])].dropna(subset=[col_kpi])
+
+                if not df_A.empty and not df_B.empty:
+                    media_A = df_A[col_kpi].mean()
+                    media_B = df_B[col_kpi].mean()
+                    delta_perc = ((media_B - media_A) / media_A) * 100 if media_A != 0 else 0
+
+                    # Regola del colore per evidenziare i miglioramenti (verde) o peggioramenti (rosso)
+                    colore_delta = "normal" if "Permeabilità" in kpi_sel or "Reiezione" in kpi_sel else "inverse"
+
+                    st.markdown("---")
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric(f"Media Periodo A", f"{media_A:.2f}")
+                    c2.metric(f"Media Periodo B", f"{media_B:.2f}", f"{media_B - media_A:+.2f}")
+                    c3.metric("Variazione Percentuale", f"{delta_perc:+.1f}%", delta_color=colore_delta)
+
+                    # Creazione del Box Plot comparativo
+                    fig = go.Figure()
+                    fig.add_trace(go.Box(y=df_A[col_kpi], name=f"Periodo A<br>({date_A[0]} - {date_A[1]})", marker_color='indianred'))
+                    fig.add_trace(go.Box(y=df_B[col_kpi], name=f"Periodo B<br>({date_B[0]} - {date_B[1]})", marker_color='lightseagreen'))
+                    
+                    fig.update_layout(title=f"Distribuzione e Stabilità: {kpi_sel}", yaxis_title=kpi_sel, boxmode='group', height=500)
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    st.info("💡 **Come leggere il Box Plot:** La 'scatola' colorata rappresenta il 50% dei dati di quel periodo (il funzionamento normale dell'impianto). La linea al centro della scatola è la Mediana. I puntini che vedi fuori dalle linee (baffi) sono i 'Fuori Norma' (es. picchi anomali di pressione). Se la scatola del Periodo B è visibilmente più **alta/larga** di quella del Periodo A, significa che l'impianto sta diventando più instabile.")
+                else:
+                    st.warning("Dati insufficienti in uno dei due periodi selezionati.")
