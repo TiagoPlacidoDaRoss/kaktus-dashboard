@@ -281,6 +281,12 @@ def render_osmosi(df_ro, baseline_ro, latest_ro, config_attuale, impianto_scelto
     with tab2:
         st.download_button(label="📥 Esporta Storico in formato CSV", data=converti_df_csv(df_ro), file_name=f'storico_ro_{impianto_scelto}.csv', mime='text/csv')
         st.dataframe(df_ro, use_container_width=True)
+        
+    st.info("""💡 **Guida alla Lettura - Osmosi Inversa (RO):**
+    - **Recovery (Recupero):** La percentuale di acqua di alimento trasformata in permeato (acqua dolce).
+    - **Reiezione Salina (Normalizzata):** Indica l'efficienza chimica della membrana nel bloccare i sali, depurata matematicamente dalle fluttuazioni di temperatura. Per calcolarla si usa il fattore $TCF = \\exp\\left[2640 \\cdot \\left(\\frac{1}{298.15} - \\frac{1}{T_{acqua} + 273.15}\\right)\\right]$. Valori ottimali: > 98%.
+    - **Consumo SEC:** Energia Specifica Consumata (kWh/m³). Rappresenta quanta energia è necessaria per produrre un singolo metro cubo di acqua dolce.
+    - **ΔP (Salto di Pressione):** Misura la perdita di carico idraulica tra l'ingresso e l'uscita dei vessel. Un aumento continuo segnala un'ostruzione fisica (fouling, bio-fouling o scaling inorganico).""")
 
 def render_uf(df_uf, baseline_uf, latest_uf, impianto_scelto):
     if df_uf.empty: return st.warning("Nessun dato UF.")
@@ -296,6 +302,10 @@ def render_uf(df_uf, baseline_uf, latest_uf, impianto_scelto):
     
     fig = crea_grafico_linee(df_uf, 'date_str', ['uftmp', 'dpscf'], title="Trend Pressioni UF", markers=True)
     if fig is not None: st.plotly_chart(fig, use_container_width=True)
+    
+    st.info("""💡 **Guida alla Lettura - Ultrafiltrazione (UF):**
+    - **TMP (Pressione Trans-Membrana):** È la pressione netta necessaria per forzare l'acqua ad attraversare i pori microscopici (fibre cave) della membrana di pre-trattamento. 
+    - **Salute dell'Asset:** Un rapido e continuo aumento della TMP (verso la soglia di guardia di 1.5 bar) indica un intasamento dei pori (fouling irreversibile) o la necessità di rendere i cicli di controlavaggio (Backwash / CEB) più frequenti o aggressivi.""")
 
 def render_inverter(df_nas, config_attuale, impianto_scelto):
     if df_nas.empty: return st.warning("Nessun dato inverter.")
@@ -314,6 +324,10 @@ def render_inverter(df_nas, config_attuale, impianto_scelto):
         fig = crea_grafico_linee(df_p_plot, 'date_str', 'cosphi', title=f"Trend Cosφ - {pompa_sel}")
         if fig is not None: st.plotly_chart(fig, use_container_width=True)
     else: st.info(f"Dati Cosφ non disponibili o insufficienti per {pompa_sel}.")
+    
+    st.info("""💡 **Guida alla Lettura - Elettromeccanica Inverter:**
+    - **Cosφ (Fattore di Potenza):** Indica l'efficienza magnetica dello statore del motore elettrico. Un calo progressivo o brusco del Cosφ rispetto alla linea di base indica degrado dell'isolamento o possibili cortocircuiti tra le spire avvolte (situazione critica).
+    - **Sforzo Meccanico (A/Hz):** L'indice calcolato dal rapporto tra Corrente assorbita e Frequenza di rete. Un aumento di questo valore indica che la pompa sta chiedendo più Ampere a parità di giri di rotazione: è un forte campanello d'allarme per usura dei cuscinetti, attriti anomali o blocco della girante idraulica.""")
 
 def render_grafici_personalizzati(df_ro, df_uf):
     df_merged = pd.merge(df_ro, df_uf, on=['timestamp', 'date_str'], how='outer', suffixes=('_RO', '_UF')) if not df_uf.empty else df_ro.copy()
@@ -328,6 +342,9 @@ def render_grafici_personalizzati(df_ro, df_uf):
             fig = crea_grafico_linee(df_filtered, 'DataOra', selected_cols, markers=True)
             if fig is not None: st.plotly_chart(fig, use_container_width=True)
             else: st.info("Nessun dato numerico valido nell'intervallo selezionato.")
+            
+    st.info("""💡 **Guida alla Lettura - Troubleshooting ed Esplorazione Libera:**
+    Questa sezione non impone regole predefinite o calcoli automatici. Puoi sovrapporre liberamente qualsiasi parametro (idraulico, chimico o elettrico) memorizzato nel database per identificare correlazioni anomale non ovvie (ad esempio: misurare in quale misura un picco di pressione dell'alimento influenza il consumo elettrico SEC). È lo strumento ideale per la *Root Cause Analysis* in caso di anomalie di sistema.""")
 
 def render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf, latest_uf, config_attuale, impianto_scelto):
     st.header("🔮 Analisi Predittiva e Stato di Salute")
@@ -477,6 +494,10 @@ def render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf,
                             fig_cosphi.add_hline(y=baseline_c * 0.9, line_dash="dot", line_color="red", annotation_text="Allarme (-10%)")
                         fig_cosphi.update_layout(yaxis_title='Fattore di potenza')
                         st.plotly_chart(fig_cosphi, use_container_width=True)
+                        
+    st.info("""💡 **Guida alla Lettura - Modello Predittivo:**
+    - **Health Score (%):** Un indicatore compreso tra 0 e 100 che rappresenta la "vita utile residua" dell'asset prima di dover effettuare una manutenzione correttiva.
+    - **Come calcoliamo le date:** Il sistema utilizza un algoritmo di **Regressione Lineare** (usando l'equazione $y = mx + q$) che elabora la tendenza dei dati storici. Quando la retta di regressione tracciata dal modello interseca i limiti ingegneristici predefiniti (ad esempio: una perdita del 15% sulla permeabilità iniziale), il sistema stima in modo proattivo i giorni rimanenti al lavaggio (CIP) o alla sostituzione.""")
 
 def render_confronto(df_ro, df_uf, config_attuale):
     st.header("⚖️ Analisi Comparativa (A/B Test)")
@@ -513,6 +534,11 @@ def render_confronto(df_ro, df_uf, config_attuale):
             fig.add_trace(go.Box(y=df_B[col_kpi], name=f"Periodo B<br>({date_B[0]} - {date_B[1]})", marker_color='lightseagreen'))
             fig.update_layout(title=f"Distribuzione e Stabilità: {kpi_sel}", yaxis_title=kpi_sel, boxmode='group', height=500)
             st.plotly_chart(fig, use_container_width=True)
+            
+    st.info("""💡 **Guida alla Lettura - Analisi Comparativa (A/B Test e Box Plot):**
+    - **La "Scatola" (Box):** Rappresenta visivamente il 50% centrale delle letture di quel periodo (il range di funzionamento "normale"). Se la scatola si "allarga" molto, l'impianto sta soffrendo di instabilità idraulica.
+    - **La Mediana (linea centrale):** È il valore medio effettivo di funzionamento. Se la mediana del Periodo B è palesemente disallineata da quella del Periodo A, significa che l'impianto ha subito una deviazione strutturale (es. dopo aver cambiato le cartucce o eseguito un CIP).
+    - **I Puntini (Outliers):** Identificano singoli campioni anomali, fuori scala rispetto al normale ciclo produttivo (ad esempio: colpi d'ariete, partenze repentine dell'inverter). Più puntini vedi, più l'infrastruttura ha subito shock termici o idraulici.""")
 
 # =========================================================
 # MAIN DASHBOARD ENTRY POINT
