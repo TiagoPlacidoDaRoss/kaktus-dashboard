@@ -445,7 +445,7 @@ if __name__ == '__main__':
             )
             col_cond_feed.metric(
                 "Conducibilità Alimento",
-                f"{cond_alimento:.1f} µS/cm" if pd.notna(cond_alimento) and cond_alimento > 0 else "N/D"
+                f"{cond_alimento:.2f} mS/cm" if pd.notna(cond_alimento) and cond_alimento > 0 else "N/D"
             )
             col_cond_perm.metric(
                 "Conducibilità Permeato",
