@@ -282,12 +282,18 @@ def render_osmosi(df_ro, baseline_ro, latest_ro, config_attuale, impianto_scelto
         st.download_button(label="📥 Esporta Storico in formato CSV", data=converti_df_csv(df_ro), file_name=f'storico_ro_{impianto_scelto}.csv', mime='text/csv')
         st.dataframe(df_ro, use_container_width=True)
 
-def render_uf(df_uf, baseline_uf, latest_uf):
+def render_uf(df_uf, baseline_uf, latest_uf, impianto_scelto):
     if df_uf.empty: return st.warning("Nessun dato UF.")
+    
+    col_dati, col_export = st.columns([8, 2])
+    with col_export:
+        st.download_button(label="📥 Esporta CSV", data=converti_df_csv(df_uf), file_name=f'storico_uf_{impianto_scelto}.csv', mime='text/csv')
+        
     c1, c2, c3 = st.columns(3)
     c1.metric("Flusso UF", f"{latest_uf['fit001']:.2f} m³/h", f"{latest_uf['fit001'] - baseline_uf['fit001']:+.2f}")
     c2.metric("TMP UF", f"{latest_uf['uftmp']:.2f} bar", f"{latest_uf['uftmp'] - baseline_uf['uftmp']:+.2f}", delta_color="inverse")
     c3.metric("ΔP Filtro", f"{latest_uf['dpscf']:.2f} bar", f"{latest_uf['dpscf'] - baseline_uf['dpscf']:+.2f}", delta_color="inverse")
+    
     fig = crea_grafico_linee(df_uf, 'date_str', ['uftmp', 'dpscf'], title="Trend Pressioni UF", markers=True)
     if fig is not None: st.plotly_chart(fig, use_container_width=True)
 
@@ -360,49 +366,65 @@ def render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf,
             col.progress(int(max(0, min(100, score))))
 
     with tab_map["💧 Membrane (Perm)"]:
-        if g_ro is None: st.info("Dati insufficienti per la previsione delle membrane RO.")
+        if g_ro is None: 
+            st.info("Dati insufficienti per la previsione delle membrane RO.")
         else:
             col_a, col_b = st.columns([1, 2])
             with col_a:
                 st.metric("Indice Pulito a 25°C", f"{latest_ro['perm_norm_smooth']:.2f}", f"{latest_ro['perm_norm_smooth'] - baseline_ro['perm_norm_smooth']:+.2f}")
-                st.success("Situazione Stabile") if g_ro == 999 else st.warning(f"Lavaggio chimico (CIP) tra **{g_ro}** giorni.")
+                
+                if g_ro == 999:
+                    st.success("Situazione Stabile")
+                else:
+                    st.warning(f"Lavaggio chimico (CIP) tra **{g_ro}** giorni.")
+                    
             with col_b:
                 fig = crea_grafico_previsione(df_ro, 'perm_norm_smooth', 'Previsione Fouling Membrane RO', 'Trend reale (media 24h)', 'Regressione / previsione', 30, L_PERM_RO, 'Limite CIP (85%)', yaxis_title='Permeabilità normalizzata')
                 if fig: st.plotly_chart(fig, use_container_width=True)
 
     with tab_map["🧱 Fouling Spaziatori (ΔP)"]:
-        if g_dp is None: st.info("Dati insufficienti per la previsione degli spaziatori RO.")
+        if g_dp is None: 
+            st.info("Dati insufficienti per la previsione degli spaziatori RO.")
         else:
             col_a, col_b = st.columns([1, 2])
             with col_a:
                 st.metric("ΔP Attuale", f"{latest_ro['dp_ro_smooth']:.2f} bar", f"{latest_ro['dp_ro_smooth'] - baseline_ro['dp_ro_smooth']:+.2f} bar", delta_color="inverse")
-                st.success("Situazione Idraulica Stabile") if g_dp == 999 else st.error(f"Lavaggio (CIP) stimato tra **{g_dp}** giorni.")
+                
+                if g_dp == 999:
+                    st.success("Situazione Idraulica Stabile")
+                else:
+                    st.error(f"Lavaggio (CIP) stimato tra **{g_dp}** giorni.")
+                    
             with col_b:
                 fig = crea_grafico_previsione(df_ro, 'dp_ro_smooth', 'Previsione Fouling Spaziatori RO', 'ΔP reale (media 24h)', 'Previsione fouling', 30, L_DPRO, 'Limite rischio CIP (+15%)', baseline_ro['dp_ro_smooth'], 'Baseline installazione', 'Salto di pressione (bar)', 'up')
                 if fig: st.plotly_chart(fig, use_container_width=True)
 
     if config_attuale["has_uf"]:
         with tab_map["🟢 Membrane UF"]:
-            if df_uf.empty or g_uf is None: st.info("In attesa di dati UF sufficienti...")
+            if df_uf.empty or g_uf is None: 
+                st.info("In attesa di dati UF sufficienti...")
             else:
                 fig = crea_grafico_previsione(df_uf, 'uftmp', 'Previsione TMP Ultrafiltrazione', 'TMP reale', 'Regressione', 30, L_TMP_UF, 'Limite TMP', baseline_uf['uftmp'], 'Baseline', 'TMP (bar)')
                 if fig: st.plotly_chart(fig, use_container_width=True)
 
     if config_attuale["has_bag_filters"]:
         with tab_map["🧦 Filtri a Calza"]:
-            if len(df_calze) < 3: st.info("Dati insufficienti per la previsione dei filtri a calza.")
+            if len(df_calze) < 3: 
+                st.info("Dati insufficienti per la previsione dei filtri a calza.")
             else:
                 fig = crea_grafico_previsione(df_calze, 'pit007', 'Previsione Intasamento Filtri a Calza', 'ΔP reale', 'Previsione intasamento', 20, L_DP_CALZE, 'Limite sostituzione', baseline_ro['pit007'], 'Baseline', 'ΔP (bar)', 'up')
                 if fig: st.plotly_chart(fig, use_container_width=True)
 
     with tab_map["🗑️ Cartucce CF01"]:
-        if len(df_ro[df_ro['dp_cf01'] > 0.05]) < 3: st.info("Dati insufficienti per la previsione delle cartucce CF01.")
+        if len(df_ro[df_ro['dp_cf01'] > 0.05]) < 3: 
+            st.info("Dati insufficienti per la previsione delle cartucce CF01.")
         else:
             fig = crea_grafico_previsione(df_ro[df_ro['dp_cf01'] > 0.05], 'dp_cf01', 'Previsione Intasamento Cartucce CF01', 'ΔP reale', 'Previsione', 20, L_DPCF01, 'Limite sostituzione', baseline_ro['dp_cf01'], 'Baseline', 'ΔP (bar)', 'up')
             if fig: st.plotly_chart(fig, use_container_width=True)
 
     with tab_map["⛨ Diagnostica Motori"]:
-        if df_nas.empty: st.info("In attesa di dati inverter sufficienti...")
+        if df_nas.empty: 
+            st.info("In attesa di dati inverter sufficienti...")
         else:
             install_dates = PUMP_INSTALL_DATES.get(impianto_scelto, {})
             stats_pompe = []
@@ -428,8 +450,10 @@ def render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf,
                     "Stato Meccanico": "🔴 Critico" if deg_mecc > 15 else ("🟡 Attenzione" if deg_mecc > 8 else "🟢 Ottimale")
                 })
 
-            if stats_pompe: st.dataframe(pd.DataFrame(stats_pompe), use_container_width=True)
-            else: st.info("Non ci sono abbastanza campioni validi per costruire il cruscotto motori.")
+            if stats_pompe: 
+                st.dataframe(pd.DataFrame(stats_pompe), use_container_width=True)
+            else: 
+                st.info("Non ci sono abbastanza campioni validi per costruire il cruscotto motori.")
 
             st.markdown("---")
             pompa_sel = st.selectbox("Seleziona pompa per dettaglio trend storico:", options=list(config_attuale["inverters"].keys()), format_func=lambda x: f"{x} - {config_attuale['inverters'][x]}", key='predictive_motor_select')
@@ -523,7 +547,7 @@ if __name__ == '__main__':
         if sezione_selezionata == "🔵 Osmosi Inversa (RO)":
             render_osmosi(df_ro, baseline_ro, latest_ro, config_attuale, impianto_scelto)
         elif sezione_selezionata == "🟢 Ultrafiltrazione (UF)":
-            render_uf(df_uf, baseline_uf, latest_uf)
+            render_uf(df_uf, baseline_uf, latest_uf, impianto_scelto)
         elif sezione_selezionata == "⚡ Inverter & Pompe":
             render_inverter(df_nas, config_attuale, impianto_scelto)
         elif sezione_selezionata == "📈 Grafici Personalizzati":
