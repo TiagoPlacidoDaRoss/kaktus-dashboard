@@ -186,12 +186,23 @@ if __name__ == '__main__':
 
         # ---------------------------------------------------------
         elif sezione_selezionata == "⚡ Inverter & Pompe":
-            if df_nas.empty: st.warning("Nessun dato inverter.")
+            if df_nas.empty: 
+                st.warning("Nessun dato inverter.")
             else:
                 latest_ts = df_nas['timestamp'].max()
                 df_nas_latest = df_nas[df_nas['timestamp'] == latest_ts].copy()
                 df_nas_latest['Nome Pompa'] = df_nas_latest['nas_id'].map(config_attuale["inverters"]).fillna("Pompa Sconosciuta")
                 st.dataframe(df_nas_latest[['Nome Pompa', 'status', 'freq', 'current', 'power', 'cosphi']], use_container_width=True)
+                
+                st.subheader("Analisi Salute Statore")
+                pompa_sel = st.selectbox("Seleziona pompa per trend Cosφ:", options=list(config_attuale["inverters"].keys()), format_func=lambda x: f"{x} - {config_attuale['inverters'][x]}")
+                df_p_plot = df_nas[(df_nas['nas_id'] == pompa_sel) & (df_nas['freq'] > 1.0)].copy()
+                
+                if not df_p_plot.empty and 'cosphi' in df_p_plot.columns and df_p_plot['cosphi'].notnull().any():
+                    fig = px.line(df_p_plot, x='date_str', y='cosphi', title=f"Trend Cosφ - {pompa_sel}")
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info(f"Dati Cosφ non disponibili o insufficienti per {pompa_sel}.")
 
         # ---------------------------------------------------------
         elif sezione_selezionata == "📈 Grafici Personalizzati":
