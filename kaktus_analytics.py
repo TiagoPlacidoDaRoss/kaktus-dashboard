@@ -16,6 +16,10 @@ CONFIG_IMPIANTI = {
         "has_uf": True,
         "has_sec": True,
         "has_bag_filters": False,
+        "fit_labels": {
+            "fit001": "Flusso Permeato",
+            "fit002": "Flusso Concentrato",
+        },
         "inverters": {
             'NAS1': 'Pompa HP 1 (RO)', 'NAS2': 'Pompa HP 2 (RO)', 'NAS3': 'Pompa HP 3 (RO)', 'NAS4': 'Pompa HP 4 (RO)', 
             'NAS5': 'Pompa Pozzo Kaktus', 'NAS6': 'Pompa Alimento (RO)', 'NAS11': 'Pompa Travaso TK10-3', 
@@ -27,6 +31,9 @@ CONFIG_IMPIANTI = {
         "has_uf": False,
         "has_sec": False,
         "has_bag_filters": True,
+        "fit_labels": {
+            "fit005": "Flusso Potabile (Uscita)",
+        },
         "inverters": {
             'NAS1': 'Pompa Pozzo 1 (P01)', 
             'NAS2': 'Pompa Pozzo 2 (P05)', 
@@ -76,6 +83,54 @@ def normalizza_dataframe(df):
         out = out.sort_values('timestamp').reset_index(drop=True)
 
     return out
+
+
+def colonne_fit_disponibili(df):
+    """Restituisce tutte le colonne FIT presenti, ordinate per numero strumento."""
+    if df is None or df.empty:
+        return []
+
+    fit_cols = []
+    for col in df.columns:
+        nome = str(col).lower()
+        if nome.startswith("fit") and nome[3:].isdigit():
+            fit_cols.append(col)
+
+    return sorted(fit_cols, key=lambda c: int(str(c).lower()[3:]))
+
+
+def render_metriche_fit(df, config, max_colonne=5):
+    """Mostra il valore corrente di tutti i FIT presenti nel dataset RO."""
+    fit_cols = colonne_fit_disponibili(df)
+    if not fit_cols:
+        st.info("Nessun misuratore di portata FIT disponibile nei dati.")
+        return
+
+    labels = config.get("fit_labels", {})
+
+    for inizio in range(0, len(fit_cols), max_colonne):
+        gruppo = fit_cols[inizio:inizio + max_colonne]
+        colonne = st.columns(len(gruppo))
+
+        for contenitore, fit_col in zip(colonne, gruppo):
+            valori = pd.to_numeric(df[fit_col], errors="coerce").dropna()
+            codice = str(fit_col).upper()
+            titolo = labels.get(str(fit_col).lower())
+            etichetta = f"{titolo} ({codice})" if titolo else codice
+
+            if valori.empty:
+                contenitore.metric(etichetta, "N/D")
+                continue
+
+            valore_attuale = float(valori.iloc[-1])
+            baseline = float(valori.iloc[0])
+            delta = valore_attuale - baseline
+            contenitore.metric(
+                etichetta,
+                f"{valore_attuale:.2f} m³/h",
+                f"{delta:+.2f} m³/h",
+                delta_color="off"
+            )
 
 
 def crea_grafico_linee(df, x_col, y_cols, title=None, markers=False):
@@ -378,13 +433,12 @@ if __name__ == '__main__':
             
             st.markdown("---")
             st.subheader("Parametri Acqua (Extra)")
-            col_ph, col_cond, col_flow = st.columns(3)
+            col_ph, col_cond = st.columns(2)
             col_ph.metric("pH Permeato", f"{latest_ro['ait005']:.2f}" if latest_ro['ait005'] > 0 else "N/D")
             col_cond.metric("Conducibilità Permeato", f"{latest_ro['ait002']:.1f} µS/cm")
-            if config_attuale["has_bag_filters"]:
-                col_flow.metric("Flusso Potabile (Uscita)", f"{latest_ro['fit005']:.2f} m³/h")
-            else:
-                col_flow.metric("Flusso Concentrato", f"{latest_ro['fit002']:.2f} m³/h")
+
+            st.markdown("#### Portate istantanee — tutti i FIT")
+            render_metriche_fit(df_ro, config_attuale)
 
             tab1, tab2 = st.tabs(["Grafici di Tendenza", "Dati Tabellari"])
             with tab1:
