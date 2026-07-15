@@ -37,7 +37,12 @@ CONFIG_IMPIANTI = {
     }
 }
 
-PUMP_INSTALL_DATES = {}
+PUMP_INSTALL_DATES = {
+    "🌵 GW012 Kaktus (Capo Verde)": {
+        "NAS5": "2026-06-12"
+    },
+    "🌴 Pingwe (Zanzibar)": {}
+}
 
 
 def normalizza_dataframe(df):
@@ -114,6 +119,98 @@ def crea_grafico_linee(df, x_col, y_cols, title=None, markers=False):
         legend_title_text='',
         hovermode='x unified',
         margin=dict(l=20, r=20, t=55 if title else 20, b=20)
+    )
+    return fig
+
+
+
+def crea_grafico_previsione(
+    df,
+    col_y,
+    title,
+    real_name="Dato reale",
+    prediction_name="Previsione lineare",
+    giorni_futuri=30,
+    limite=None,
+    limite_label=None,
+    baseline=None,
+    baseline_label=None,
+    yaxis_title=None,
+    direzione_previsione=None,
+):
+    """Crea serie reale + regressione lineare futura usando i giorni come asse numerico stabile."""
+    if df is None or df.empty or col_y not in df.columns:
+        return None
+
+    if 'date_str' in df.columns:
+        date = pd.to_datetime(df['date_str'], errors='coerce')
+    elif 'timestamp' in df.columns:
+        date = pd.to_datetime(pd.to_numeric(df['timestamp'], errors='coerce'), unit='s', errors='coerce')
+    else:
+        return None
+
+    y = pd.to_numeric(df[col_y], errors='coerce')
+    validi = date.notna() & y.notna() & np.isfinite(y)
+    date = date[validi].reset_index(drop=True)
+    y = y[validi].reset_index(drop=True)
+
+    if date.empty:
+        return None
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=date,
+        y=y,
+        mode='lines',
+        name=real_name,
+        connectgaps=False
+    ))
+
+    if len(y) >= 3 and date.nunique() >= 2 and not np.allclose(y.to_numpy(dtype=float), float(y.iloc[0])):
+        x_giorni = (date - date.iloc[0]).dt.total_seconds().to_numpy(dtype=float) / 86400.0
+        y_values = y.to_numpy(dtype=float)
+        try:
+            slope, intercept = np.polyfit(x_giorni, y_values, 1)
+            mostra_previsione = np.isfinite(slope) and np.isfinite(intercept)
+            if direzione_previsione == 'up':
+                mostra_previsione = mostra_previsione and slope > 0
+            elif direzione_previsione == 'down':
+                mostra_previsione = mostra_previsione and slope < 0
+
+            if mostra_previsione:
+                x_futuro = np.linspace(x_giorni[0], x_giorni[-1] + giorni_futuri, 120)
+                date_future = date.iloc[0] + pd.to_timedelta(x_futuro, unit='D')
+                fig.add_trace(go.Scatter(
+                    x=date_future,
+                    y=slope * x_futuro + intercept,
+                    mode='lines',
+                    line=dict(dash='dash'),
+                    name=prediction_name
+                ))
+        except (TypeError, ValueError, np.linalg.LinAlgError):
+            pass
+
+    if limite is not None and np.isfinite(float(limite)):
+        fig.add_hline(
+            y=float(limite),
+            line_color='red',
+            annotation_text=limite_label or 'Limite'
+        )
+
+    if baseline is not None and np.isfinite(float(baseline)):
+        fig.add_hline(
+            y=float(baseline),
+            line_color='green',
+            line_dash='dot',
+            annotation_text=baseline_label or 'Baseline'
+        )
+
+    fig.update_layout(
+        title=title,
+        yaxis_title=yaxis_title,
+        hovermode='x unified',
+        legend_title_text='',
+        margin=dict(l=20, r=20, t=55, b=20)
     )
     return fig
 
@@ -292,10 +389,48 @@ if __name__ == '__main__':
             tab1, tab2 = st.tabs(["Grafici di Tendenza", "Dati Tabellari"])
             with tab1:
                 fig_perm = go.Figure()
-                fig_perm.add_trace(go.Scatter(x=pd.to_datetime(df_ro['date_str']), y=df_ro['perm_norm'], mode='markers+lines', name='Dato Orario', line=dict(color='lightblue', width=1)))
-                fig_perm.add_trace(go.Scatter(x=pd.to_datetime(df_ro['date_str']), y=df_ro['perm_norm_smooth'], mode='lines', name='Trend', line=dict(color='darkblue', width=4)))
+                fig_perm.add_trace(go.Scatter(
+                    x=pd.to_datetime(df_ro['date_str']), y=df_ro['perm_norm'],
+                    mode='markers+lines', name='Dato Orario',
+                    line=dict(color='lightblue', width=1)
+                ))
+                fig_perm.add_trace(go.Scatter(
+                    x=pd.to_datetime(df_ro['date_str']), y=df_ro['perm_norm_smooth'],
+                    mode='lines', name='Trend (Media 24h)',
+                    line=dict(color='darkblue', width=4)
+                ))
+                fig_perm.update_layout(
+                    title='Fouling: Indice di Permeabilità ASTM (Media Mobile)',
+                    yaxis_title='Permeabilità (m³/h/bar)',
+                    hovermode='x unified'
+                )
                 st.plotly_chart(fig_perm, use_container_width=True)
-            with tab2: st.dataframe(df_ro, use_container_width=True)
+
+                fig_press = go.Figure()
+                if 'fit001' in df_ro.columns:
+                    fig_press.add_trace(go.Scatter(
+                        x=pd.to_datetime(df_ro['date_str']), y=df_ro['fit001'],
+                        name='Permeato (m³/h)', mode='lines+markers'
+                    ))
+                if 'pit003' in df_ro.columns:
+                    fig_press.add_trace(go.Scatter(
+                        x=pd.to_datetime(df_ro['date_str']), y=df_ro['pit003'],
+                        name='P. Ingresso (bar)', yaxis='y2'
+                    ))
+                if 'pit004' in df_ro.columns:
+                    fig_press.add_trace(go.Scatter(
+                        x=pd.to_datetime(df_ro['date_str']), y=df_ro['pit004'],
+                        name='P. Uscita (bar)', yaxis='y2', line=dict(dash='dot')
+                    ))
+                fig_press.update_layout(
+                    title='Dinamica Pressioni Idrauliche',
+                    yaxis=dict(title='Portata (m³/h)'),
+                    yaxis2=dict(title='Pressione (bar)', overlaying='y', side='right'),
+                    hovermode='x unified'
+                )
+                st.plotly_chart(fig_press, use_container_width=True)
+            with tab2:
+                st.dataframe(df_ro, use_container_width=True)
 
         # ---------------------------------------------------------
         elif sezione_selezionata == "🟢 Ultrafiltrazione (UF)":
@@ -356,118 +491,390 @@ if __name__ == '__main__':
 
         # ---------------------------------------------------------
         elif sezione_selezionata == "🔮 Manutenzione Predittiva":
-            L_PERM_RO = baseline_ro['perm_norm_smooth'] * 0.85 
-            L_DPCF01 = 1.0 
-            L_DPRO = baseline_ro['dp_ro_smooth'] * 1.15 
+            st.header("🔮 Analisi Predittiva e Stato di Salute")
+
+            L_PERM_RO = baseline_ro['perm_norm_smooth'] * 0.85
+            L_DPCF01 = 1.0
+            L_DPRO = baseline_ro['dp_ro_smooth'] * 1.15
             L_DP_CALZE = 1.0
-            
-            tabs = ["📊 Salute", "💧 Membrane RO", "🧱 Spaziatori (ΔP)", "🗑️ Cartucce CF01", "⛨ Motori"]
-            if config_attuale["has_uf"]: tabs.insert(3, "🟢 Membrane UF")
-            if config_attuale["has_bag_filters"]: tabs.insert(3, "🧦 Filtri a Calza")
-            
-            t = st.tabs(tabs)
-            
-            with t[0]:
-                score_ro = get_health_score(latest_ro['perm_norm_smooth'], baseline_ro['perm_norm_smooth'], L_PERM_RO, False)
-                score_dp = get_health_score(latest_ro['dp_ro_smooth'], baseline_ro['dp_ro_smooth'], L_DPRO, True)
-                score_cf = get_health_score(latest_ro['dp_cf01'], baseline_ro['dp_cf01'], L_DPCF01)
-                
-                cols = st.columns(5 if (config_attuale["has_uf"] or config_attuale["has_bag_filters"]) else 3)
-                def render_card(col, tit, sc, gg):
-                    col.markdown(f"**{tit}**")
-                    col.markdown(f"<h2 style='color:{'green' if sc>70 else ('orange' if sc>30 else 'red')}; margin:0;'>{sc:.0f}%</h2>", unsafe_allow_html=True)
-                    col.caption("Stabile" if gg==999 else (f"Stimato in: {gg} giorni" if gg is not None else ""))
-                    col.progress(int(sc))
-                
-                render_card(cols[0], "Membrane RO", score_ro, stima_giorni_rimanenti(df_ro, 'perm_norm_smooth', L_PERM_RO, False))
-                render_card(cols[1], "Spaziatori RO", score_dp, stima_giorni_rimanenti(df_ro, 'dp_ro_smooth', L_DPRO, True))
-                render_card(cols[2], "Filtro CF01", score_cf, stima_giorni_rimanenti(df_ro[df_ro['dp_cf01'] > 0.05], 'dp_cf01', L_DPCF01))
-                
-                if config_attuale["has_bag_filters"]:
-                    score_calze = get_health_score(latest_ro['pit007'], baseline_ro['pit007'], L_DP_CALZE)
-                    render_card(cols[3], "Filtri a Calza", score_calze, stima_giorni_rimanenti(df_ro[df_ro['pit007'] > 0.05], 'pit007', L_DP_CALZE))
-                elif config_attuale["has_uf"]:
-                    if df_uf.empty or baseline_uf['uftmp'] == 0:
-                        render_card(cols[3], "Membrane UF", 100, 999)
-                    else:
-                        render_card(cols[3], "Membrane UF", get_health_score(latest_uf['uftmp'], baseline_uf['uftmp'], 1.5), stima_giorni_rimanenti(df_uf, 'uftmp', 1.5))
+            L_TMP_UF = 1.5
 
-            with t[1]:
-                g_ro = stima_giorni_rimanenti(df_ro, 'perm_norm_smooth', L_PERM_RO, False)
-                if g_ro is not None:
-                    col_a, col_b = st.columns([1, 2])
-                    with col_a:
-                        st.metric("Indice ASTM", f"{latest_ro['perm_norm_smooth']:.2f}")
-                        if g_ro != 999:
-                            st.warning(f"CIP tra {g_ro} gg.")
-                        else:
-                            st.success("Stabile")
-                    with col_b:
-                        fig = crea_grafico_linee(df_ro, 'date_str', 'perm_norm_smooth')
-                        if fig is not None:
-                            fig.add_hline(y=L_PERM_RO, line_color='red')
-                            st.plotly_chart(fig, use_container_width=True)
+            g_ro = stima_giorni_rimanenti(df_ro, 'perm_norm_smooth', L_PERM_RO, False)
+            g_dp = stima_giorni_rimanenti(df_ro, 'dp_ro_smooth', L_DPRO, True)
+            df_cf = df_ro[df_ro['dp_cf01'] > 0.05].copy()
+            g_cf = stima_giorni_rimanenti(df_cf, 'dp_cf01', L_DPCF01)
 
-            with t[2]:
-                g_dp = stima_giorni_rimanenti(df_ro, 'dp_ro_smooth', L_DPRO, True)
-                if g_dp is not None:
-                    col_a, col_b = st.columns([1, 2])
-                    with col_a:
-                        st.metric("ΔP Attuale", f"{latest_ro['dp_ro_smooth']:.2f} bar")
-                        if g_dp != 999:
-                            st.error(f"Rischio tra {g_dp} gg.")
-                        else:
-                            st.success("Stabile")
-                    with col_b:
-                        fig = crea_grafico_linee(df_ro, 'date_str', 'dp_ro_smooth')
-                        if fig is not None:
-                            fig.add_hline(y=L_DPRO, line_color='red')
-                            st.plotly_chart(fig, use_container_width=True)
-            
-            idx = 3
+            df_calze = pd.DataFrame()
+            g_calze = None
+            if config_attuale["has_bag_filters"] and 'pit007' in df_ro.columns:
+                df_calze = df_ro[df_ro['pit007'] > 0.05].copy()
+                g_calze = stima_giorni_rimanenti(df_calze, 'pit007', L_DP_CALZE)
+
+            g_uf = None
+            if config_attuale["has_uf"] and not df_uf.empty:
+                g_uf = stima_giorni_rimanenti(df_uf, 'uftmp', L_TMP_UF)
+
+            tab_labels = [
+                "📊 Cruscotto Salute",
+                "💧 Membrane (Perm)",
+                "🧱 Fouling Spaziatori (ΔP)"
+            ]
             if config_attuale["has_uf"]:
-                with t[idx]:
-                    if not df_uf.empty:
-                        fig = crea_grafico_linee(df_uf, 'date_str', 'uftmp')
-                        if fig is not None:
-                            fig.add_hline(y=1.5, line_color='red')
-                            st.plotly_chart(fig, use_container_width=True)
-                idx += 1
-                
+                tab_labels.append("🟢 Membrane UF")
             if config_attuale["has_bag_filters"]:
-                with t[idx]:
-                    df_calze = df_ro[df_ro['pit007'] > 0.05]
-                    if len(df_calze) > 3:
-                        fig = crea_grafico_linee(df_calze, 'date_str', 'pit007', title="Intasamento Filtri a Calza (ΔP)")
-                        if fig is not None:
-                            fig.add_hline(y=L_DP_CALZE, line_color='red')
-                            st.plotly_chart(fig, use_container_width=True)
-                idx += 1
-                
-            with t[idx]:
-                df_cf = df_ro[df_ro['dp_cf01'] > 0.05]
-                if len(df_cf) > 3:
-                    fig = crea_grafico_linee(df_cf, 'date_str', 'dp_cf01', title="Intasamento Cartucce CF01")
-                    if fig is not None:
-                        fig.add_hline(y=L_DPCF01, line_color='red')
-                        st.plotly_chart(fig, use_container_width=True)
-            idx += 1
-            
-            with t[idx]:
-                if not df_nas.empty:
-                    pompa_sel = st.selectbox("Seleziona pompa:", options=list(config_attuale["inverters"].keys()), format_func=lambda x: f"{x} - {config_attuale['inverters'][x]}")
-                    df_p_plot = df_nas[(df_nas['nas_id'] == pompa_sel) & (df_nas['freq'] > 10)].copy()
-                    if not df_p_plot.empty:
-                        df_p_plot['indice_coppia'] = df_p_plot['current'] / df_p_plot['freq']
-                        fig = crea_grafico_linee(df_p_plot, 'date_str', 'cosphi', title="Salute Statore (Cosφ)")
-                        if fig is not None:
-                            st.plotly_chart(fig, use_container_width=True)
+                tab_labels.append("🧦 Filtri a Calza")
+            tab_labels.extend(["🗑️ Cartucce CF01", "⛨ Diagnostica Motori"])
+
+            tab_objects = st.tabs(tab_labels)
+            tab_map = dict(zip(tab_labels, tab_objects))
+
+            with tab_map["📊 Cruscotto Salute"]:
+                st.subheader("Stato di Salute Asset (Health Score)")
+                score_ro = get_health_score(
+                    latest_ro['perm_norm_smooth'], baseline_ro['perm_norm_smooth'],
+                    L_PERM_RO, is_max_limit=False
+                )
+                score_dp = get_health_score(
+                    latest_ro['dp_ro_smooth'], baseline_ro['dp_ro_smooth'],
+                    L_DPRO, is_max_limit=True
+                )
+                score_cf = get_health_score(
+                    latest_ro['dp_cf01'], baseline_ro['dp_cf01'],
+                    L_DPCF01, is_max_limit=True
+                )
+
+                cards = [
+                    ("Membrane RO (ASTM)", score_ro, g_ro),
+                    ("Spaziatori RO (ΔP)", score_dp, g_dp),
+                    ("Filtro Cartucce CF01", score_cf, g_cf)
+                ]
+
+                if config_attuale["has_uf"]:
+                    if df_uf.empty or baseline_uf['uftmp'] == 0:
+                        cards.append(("Membrane UF (TMP)", 100.0, 999))
+                    else:
+                        score_uf = get_health_score(
+                            latest_uf['uftmp'], baseline_uf['uftmp'],
+                            L_TMP_UF, is_max_limit=True
+                        )
+                        cards.append(("Membrane UF (TMP)", score_uf, g_uf))
+
+                if config_attuale["has_bag_filters"] and 'pit007' in df_ro.columns:
+                    score_calze = get_health_score(
+                        latest_ro['pit007'], baseline_ro['pit007'],
+                        L_DP_CALZE, is_max_limit=True
+                    )
+                    cards.append(("Filtri a Calza", score_calze, g_calze))
+
+                cols = st.columns(len(cards))
+
+                def render_health_card(col, titolo, score, giorni):
+                    col.markdown(f"**{titolo}**")
+                    color = "green" if score > 70 else ("orange" if score > 30 else "red")
+                    col.markdown(
+                        f"<h2 style='color:{color}; margin:0;'>{score:.0f}%</h2>",
+                        unsafe_allow_html=True
+                    )
+                    if giorni == 999:
+                        col.caption("Stabile - Nessun intervento")
+                    elif giorni is not None:
+                        col.caption(f"Stimato in: {giorni} giorni")
+                    else:
+                        col.caption("Dati insufficienti")
+                    col.progress(int(max(0, min(100, score))))
+
+                for col, card in zip(cols, cards):
+                    render_health_card(col, *card)
+
+            with tab_map["💧 Membrane (Perm)"]:
+                st.subheader("Fouling Forecast (Filtrazione ASTM Smooth)")
+                if g_ro is None:
+                    st.info("Dati insufficienti per la previsione delle membrane RO.")
+                else:
+                    col_a, col_b = st.columns([1, 2])
+                    with col_a:
+                        st.metric(
+                            "Indice Pulito a 25°C",
+                            f"{latest_ro['perm_norm_smooth']:.2f}",
+                            f"{latest_ro['perm_norm_smooth'] - baseline_ro['perm_norm_smooth']:+.2f}"
+                        )
+                        if g_ro == 999:
+                            st.success("Situazione Stabile")
                         else:
-                            st.info("Dati Cosφ non validi per la pompa selezionata.")
+                            st.warning(f"Lavaggio chimico (CIP) tra **{g_ro}** giorni.")
+                    with col_b:
+                        fig = crea_grafico_previsione(
+                            df_ro, 'perm_norm_smooth',
+                            title='Previsione Fouling Membrane RO',
+                            real_name='Trend reale (media 24h)',
+                            prediction_name='Regressione / previsione',
+                            giorni_futuri=30,
+                            limite=L_PERM_RO,
+                            limite_label='Limite CIP (85%)',
+                            yaxis_title='Permeabilità normalizzata',
+                            direzione_previsione=None
+                        )
+                        if fig is not None:
+                            st.plotly_chart(fig, use_container_width=True)
+
+            with tab_map["🧱 Fouling Spaziatori (ΔP)"]:
+                st.subheader("Diagnostica Spaziatori: Resistenza Idraulica (ΔP RO)")
+                st.markdown(
+                    "Questa analisi intercetta ostruzioni fisiche tra i fogli della membrana. "
+                    "Un rapido aumento può indicare scaling inorganico oppure fouling biologico/particellare."
+                )
+                if g_dp is None:
+                    st.info("Dati insufficienti per la previsione degli spaziatori RO.")
+                else:
+                    col_a, col_b = st.columns([1, 2])
+                    with col_a:
+                        st.metric(
+                            "ΔP Attuale",
+                            f"{latest_ro['dp_ro_smooth']:.2f} bar",
+                            f"{latest_ro['dp_ro_smooth'] - baseline_ro['dp_ro_smooth']:+.2f} bar",
+                            delta_color="inverse"
+                        )
+                        st.caption(
+                            f"Baseline (pulito): {baseline_ro['dp_ro_smooth']:.2f} bar  ·  "
+                            f"Limite (+15%): {L_DPRO:.2f} bar"
+                        )
+                        if g_dp == 999:
+                            st.success("Situazione Idraulica Stabile")
+                        else:
+                            st.error(f"Lavaggio (CIP) stimato tra **{g_dp}** giorni.")
+                    with col_b:
+                        fig = crea_grafico_previsione(
+                            df_ro, 'dp_ro_smooth',
+                            title='Previsione Fouling Spaziatori RO',
+                            real_name='ΔP reale (media 24h)',
+                            prediction_name='Previsione fouling',
+                            giorni_futuri=30,
+                            limite=L_DPRO,
+                            limite_label='Limite rischio CIP (+15%)',
+                            baseline=baseline_ro['dp_ro_smooth'],
+                            baseline_label='Baseline installazione',
+                            yaxis_title='Salto di pressione (bar)',
+                            direzione_previsione='up'
+                        )
+                        if fig is not None:
+                            st.plotly_chart(fig, use_container_width=True)
+
+            if config_attuale["has_uf"]:
+                with tab_map["🟢 Membrane UF"]:
+                    st.subheader("Fouling Forecast: Membrane Ultrafiltrazione")
+                    if df_uf.empty or g_uf is None:
+                        st.info("In attesa di dati UF sufficienti per calcolare la previsione...")
+                    else:
+                        fig = crea_grafico_previsione(
+                            df_uf, 'uftmp',
+                            title='Previsione TMP Ultrafiltrazione',
+                            real_name='TMP reale',
+                            prediction_name='Regressione / previsione',
+                            giorni_futuri=30,
+                            limite=L_TMP_UF,
+                            limite_label='Limite TMP',
+                            baseline=baseline_uf['uftmp'],
+                            baseline_label='Baseline',
+                            yaxis_title='TMP (bar)',
+                            direzione_previsione=None
+                        )
+                        if fig is not None:
+                            st.plotly_chart(fig, use_container_width=True)
+
+            if config_attuale["has_bag_filters"]:
+                with tab_map["🧦 Filtri a Calza"]:
+                    st.subheader("Intasamento Filtri a Calza (ΔP)")
+                    if len(df_calze) < 3:
+                        st.info("Dati insufficienti per la previsione dei filtri a calza.")
+                    else:
+                        fig = crea_grafico_previsione(
+                            df_calze, 'pit007',
+                            title='Previsione Intasamento Filtri a Calza',
+                            real_name='ΔP reale',
+                            prediction_name='Previsione intasamento',
+                            giorni_futuri=20,
+                            limite=L_DP_CALZE,
+                            limite_label='Limite sostituzione',
+                            baseline=baseline_ro['pit007'],
+                            baseline_label='Baseline',
+                            yaxis_title='ΔP (bar)',
+                            direzione_previsione='up'
+                        )
+                        if fig is not None:
+                            st.plotly_chart(fig, use_container_width=True)
+
+            with tab_map["🗑️ Cartucce CF01"]:
+                st.subheader("Intasamento Filtro Cartucce CF01")
+                if len(df_cf) < 3:
+                    st.info("Dati insufficienti per la previsione delle cartucce CF01.")
+                else:
+                    fig = crea_grafico_previsione(
+                        df_cf, 'dp_cf01',
+                        title='Previsione Intasamento Cartucce CF01',
+                        real_name='ΔP reale',
+                        prediction_name='Previsione intasamento',
+                        giorni_futuri=20,
+                        limite=L_DPCF01,
+                        limite_label='Limite sostituzione',
+                        baseline=baseline_ro['dp_cf01'],
+                        baseline_label='Baseline',
+                        yaxis_title='ΔP (bar)',
+                        direzione_previsione='up'
+                    )
+                    if fig is not None:
+                        st.plotly_chart(fig, use_container_width=True)
+
+            with tab_map["⛨ Diagnostica Motori"]:
+                st.subheader("Diagnostica Elettromeccanica Pompe")
+                if df_nas.empty:
+                    st.info("In attesa di dati inverter sufficienti per la diagnostica...")
+                else:
+                    st.markdown(
+                        "Valutazione incrociata dello sforzo meccanico (A/Hz) e della "
+                        "salute dello statore (deriva del Cosφ)."
+                    )
+
+                    inverter_map = config_attuale["inverters"]
+                    install_dates = PUMP_INSTALL_DATES.get(impianto_scelto, {})
+                    stats_pompe = []
+
+                    for nas_id, nome_pompa in inverter_map.items():
+                        df_p = df_nas[
+                            (df_nas['nas_id'] == nas_id) &
+                            (pd.to_numeric(df_nas['freq'], errors='coerce') > 10)
+                        ].copy()
+
+                        if nas_id in install_dates:
+                            install_date = pd.to_datetime(install_dates[nas_id], errors='coerce')
+                            if pd.notna(install_date):
+                                df_p = df_p[pd.to_datetime(df_p['date_str'], errors='coerce') >= install_date]
+
+                        colonne_richieste = {'current', 'freq', 'cosphi'}
+                        if len(df_p) < 3 or not colonne_richieste.issubset(df_p.columns):
+                            continue
+
+                        current = pd.to_numeric(df_p['current'], errors='coerce')
+                        freq = pd.to_numeric(df_p['freq'], errors='coerce')
+                        cosphi = pd.to_numeric(df_p['cosphi'], errors='coerce')
+                        validi = current.notna() & freq.notna() & cosphi.notna() & (freq > 0)
+                        df_p = df_p.loc[validi].copy()
+                        if len(df_p) < 3:
+                            continue
+
+                        indice = (
+                            pd.to_numeric(df_p['current'], errors='coerce') /
+                            pd.to_numeric(df_p['freq'], errors='coerce')
+                        )
+                        cosphi_vals = pd.to_numeric(df_p['cosphi'], errors='coerce')
+
+                        base_idx = indice.iloc[:3].mean()
+                        latest_idx = indice.iloc[-3:].mean()
+                        base_cos = cosphi_vals.iloc[:3].mean()
+                        latest_cos = cosphi_vals.iloc[-3:].mean()
+
+                        if not all(np.isfinite(v) for v in [base_idx, latest_idx, base_cos, latest_cos]):
+                            continue
+                        if base_idx <= 0 or base_cos <= 0:
+                            continue
+
+                        deg_mecc = ((latest_idx - base_idx) / base_idx) * 100
+                        deg_ele = ((latest_cos - base_cos) / base_cos) * 100
+
+                        stato_mecc = (
+                            "🔴 Critico" if deg_mecc > 15 else
+                            ("🟡 Attenzione" if deg_mecc > 8 else "🟢 Ottimale")
+                        )
+                        stato_ele = (
+                            "🔴 Critico" if deg_ele < -10 else
+                            ("🟡 Attenzione" if deg_ele < -5 else "🟢 Ottimale")
+                        )
+
+                        nota = f" (Sostit. {install_dates[nas_id]})" if nas_id in install_dates else ""
+                        stats_pompe.append({
+                            "Pompa": nome_pompa + nota,
+                            "Deriva Cosφ (Elettrica)": f"{deg_ele:+.1f}%",
+                            "Stato Elettrico": stato_ele,
+                            "Degrado A/Hz (Meccanica)": f"{deg_mecc:+.1f}%",
+                            "Stato Meccanico": stato_mecc
+                        })
+
+                    if stats_pompe:
+                        st.dataframe(pd.DataFrame(stats_pompe), use_container_width=True)
+                    else:
+                        st.info("Non ci sono ancora abbastanza campioni validi per costruire il cruscotto motori.")
+
+                    st.markdown("---")
+                    pompa_sel = st.selectbox(
+                        "Seleziona pompa per dettaglio trend storico:",
+                        options=list(inverter_map.keys()),
+                        format_func=lambda x: f"{x} - {inverter_map[x]}",
+                        key='predictive_motor_select'
+                    )
+                    df_p_plot = df_nas[
+                        (df_nas['nas_id'] == pompa_sel) &
+                        (pd.to_numeric(df_nas['freq'], errors='coerce') > 10)
+                    ].copy()
+
+                    if pompa_sel in install_dates:
+                        install_date = pd.to_datetime(install_dates[pompa_sel], errors='coerce')
+                        if pd.notna(install_date):
+                            df_p_plot = df_p_plot[
+                                pd.to_datetime(df_p_plot['date_str'], errors='coerce') >= install_date
+                            ]
+
+                    if {'current', 'freq', 'cosphi'}.issubset(df_p_plot.columns):
+                        df_p_plot['indice_coppia'] = (
+                            pd.to_numeric(df_p_plot['current'], errors='coerce') /
+                            pd.to_numeric(df_p_plot['freq'], errors='coerce')
+                        )
+                        df_p_plot['cosphi'] = pd.to_numeric(df_p_plot['cosphi'], errors='coerce')
+                        df_p_plot = df_p_plot.replace([np.inf, -np.inf], np.nan)
+
+                    if (
+                        not df_p_plot.empty and
+                        'indice_coppia' in df_p_plot.columns and
+                        df_p_plot['indice_coppia'].notna().any()
+                    ):
+                        fig_coppia = crea_grafico_linee(
+                            df_p_plot, 'date_str', 'indice_coppia',
+                            title=f"Sforzo Meccanico Relativo (A/Hz) - {inverter_map[pompa_sel]}",
+                            markers=True
+                        )
+                        if fig_coppia is not None:
+                            fig_coppia.update_layout(yaxis_title='A/Hz')
+                            st.plotly_chart(fig_coppia, use_container_width=True)
+
+                        fig_cosphi = crea_grafico_linee(
+                            df_p_plot, 'date_str', 'cosphi',
+                            title=f"Salute Magnetica Statore (Cosφ) - {inverter_map[pompa_sel]}",
+                            markers=True
+                        )
+                        if fig_cosphi is not None:
+                            baseline_c = pd.to_numeric(
+                                df_p_plot['cosphi'], errors='coerce'
+                            ).dropna().iloc[:3].mean()
+                            if np.isfinite(baseline_c):
+                                fig_cosphi.add_hline(
+                                    y=baseline_c,
+                                    line_dash="dash",
+                                    line_color="green",
+                                    annotation_text="Baseline installazione"
+                                )
+                                fig_cosphi.add_hline(
+                                    y=baseline_c * 0.9,
+                                    line_dash="dot",
+                                    line_color="red",
+                                    annotation_text="Allarme (-10%)"
+                                )
+                            fig_cosphi.update_layout(yaxis_title='Fattore di potenza')
+                            st.plotly_chart(fig_cosphi, use_container_width=True)
+                    else:
+                        st.info("Dati validi insufficienti per il dettaglio della pompa selezionata.")
 
         # ---------------------------------------------------------
         elif sezione_selezionata == "⚖️ Confronto Periodi":
             st.header("⚖️ Analisi Comparativa (A/B Test)")
+            st.markdown("Confronta le performance dell’impianto tra due intervalli di tempo, ad esempio prima e dopo un CIP o tra due settimane diverse.")
 
             if not df_uf.empty:
                 df_merged = pd.merge(df_ro, df_uf, on=['timestamp', 'date_str'], how='outer', suffixes=('_RO', '_UF'))
@@ -512,4 +919,14 @@ if __name__ == '__main__':
                     fig = go.Figure()
                     fig.add_trace(go.Box(y=df_A[col_kpi], name=f"Periodo A<br>({date_A[0]} - {date_A[1]})", marker_color='indianred'))
                     fig.add_trace(go.Box(y=df_B[col_kpi], name=f"Periodo B<br>({date_B[0]} - {date_B[1]})", marker_color='lightseagreen'))
+                    fig.update_layout(
+                        title=f"Distribuzione e Stabilità: {kpi_sel}",
+                        yaxis_title=kpi_sel,
+                        boxmode='group',
+                        height=500
+                    )
                     st.plotly_chart(fig, use_container_width=True)
+                    st.info(
+                        "💡 La scatola rappresenta il 50% centrale dei dati e la linea interna è la mediana. "
+                        "Una scatola più larga o molti punti esterni indicano un funzionamento meno stabile."
+                    )
