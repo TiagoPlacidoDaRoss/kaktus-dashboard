@@ -3,7 +3,6 @@ import pandas as pd
 import sqlite3
 import datetime
 import numpy as np
-import plotly.express as px
 import plotly.graph_objects as go
 
 DB_NAME = "kaktus_analytics.db"
@@ -40,18 +39,142 @@ CONFIG_IMPIANTI = {
 
 PUMP_INSTALL_DATES = {}
 
+
+def normalizza_dataframe(df):
+    """Rende coerenti colonne, date e tipi numerici provenienti da Supabase/SQLite."""
+    if df is None or df.empty:
+        return pd.DataFrame() if df is None else df.copy()
+
+    out = df.copy()
+    # Plotly/Narwhals non gestisce bene DataFrame con nomi colonna duplicati.
+    out = out.loc[:, ~out.columns.duplicated()].copy()
+
+    if 'timestamp' in out.columns:
+        out['timestamp'] = pd.to_numeric(out['timestamp'], errors='coerce')
+
+    if 'date_str' in out.columns:
+        out['date_str'] = pd.to_datetime(out['date_str'], errors='coerce')
+    elif 'timestamp' in out.columns:
+        out['date_str'] = pd.to_datetime(out['timestamp'], unit='s', errors='coerce')
+
+    colonne_testo = {'date_str', 'nas_id'}
+    for col in out.columns:
+        if col not in colonne_testo:
+            converted = pd.to_numeric(out[col], errors='coerce')
+            # Conserva le colonne realmente testuali; converte quelle numeriche o quasi numeriche.
+            if converted.notna().sum() >= out[col].notna().sum() * 0.8:
+                out[col] = converted
+
+    if 'date_str' in out.columns:
+        out = out.dropna(subset=['date_str']).sort_values('date_str').reset_index(drop=True)
+    elif 'timestamp' in out.columns:
+        out = out.sort_values('timestamp').reset_index(drop=True)
+
+    return out
+
+
+def crea_grafico_linee(df, x_col, y_cols, title=None, markers=False):
+    """Crea un grafico lineare senza Plotly Express, evitando l'errore Narwhals/native_namespace."""
+    if isinstance(y_cols, str):
+        y_cols = [y_cols]
+
+    y_cols = [col for col in y_cols if col in df.columns]
+    if x_col not in df.columns or not y_cols:
+        return None
+
+    dati = df[[x_col] + y_cols].copy()
+    dati = dati.loc[:, ~dati.columns.duplicated()]
+
+    if x_col in {'date_str', 'DataOra'}:
+        dati[x_col] = pd.to_datetime(dati[x_col], errors='coerce')
+
+    for col in y_cols:
+        dati[col] = pd.to_numeric(dati[col], errors='coerce')
+
+    dati = dati.dropna(subset=[x_col])
+    dati = dati.dropna(subset=y_cols, how='all')
+    if dati.empty:
+        return None
+
+    fig = go.Figure()
+    mode = 'lines+markers' if markers else 'lines'
+    for col in y_cols:
+        fig.add_trace(go.Scatter(
+            x=dati[x_col],
+            y=dati[col],
+            mode=mode,
+            name=col,
+            connectgaps=False
+        ))
+
+    fig.update_layout(
+        title=title,
+        xaxis_title=None,
+        yaxis_title=None,
+        legend_title_text='',
+        hovermode='x unified',
+        margin=dict(l=20, r=20, t=55 if title else 20, b=20)
+    )
+    return fig
+
+
 def stima_giorni_rimanenti(df, col_y, limite, is_max_limit=True):
-    if len(df) < 3: return None
-    x, y = df['timestamp'].values, df[col_y].values
-    slope, intercept = np.polyfit(x, y, 1)
-    if (is_max_limit and slope <= 0) or (not is_max_limit and slope >= 0): return 999 
-    giorni = int(((limite - intercept) / slope - x[-1]) / 86400)
+    if df is None or len(df) < 3 or col_y not in df.columns:
+        return None
+
+    dati = df.copy()
+    if 'timestamp' in dati.columns:
+        x = pd.to_numeric(dati['timestamp'], errors='coerce')
+    elif 'date_str' in dati.columns:
+        date = pd.to_datetime(dati['date_str'], errors='coerce')
+        x = date.astype('int64') / 1_000_000_000
+    else:
+        return None
+
+    y = pd.to_numeric(dati[col_y], errors='coerce')
+    validi = x.notna() & y.notna() & np.isfinite(x) & np.isfinite(y)
+    x = x[validi].to_numpy(dtype=float)
+    y = y[validi].to_numpy(dtype=float)
+
+    if len(x) < 3 or np.allclose(x, x[0]) or np.allclose(y, y[0]):
+        return 999
+
+    # Lavora in giorni dal primo campione: è più stabile dei timestamp Unix molto grandi.
+    x_giorni = (x - x[0]) / 86400.0
+    try:
+        slope, intercept = np.polyfit(x_giorni, y, 1)
+    except (TypeError, ValueError, np.linalg.LinAlgError):
+        return None
+
+    if not np.isfinite(slope) or abs(slope) < 1e-12:
+        return 999
+    if (is_max_limit and slope <= 0) or (not is_max_limit and slope >= 0):
+        return 999
+
+    giorno_limite = (float(limite) - intercept) / slope
+    giorni = int(np.ceil(giorno_limite - x_giorni[-1]))
     return max(0, giorni)
 
 def get_health_score(valore_attuale, baseline, limite, is_max_limit=True):
-    if is_max_limit: score = 100 - ((valore_attuale - baseline) / (limite - baseline) * 100)
-    else: score = 100 - ((baseline - valore_attuale) / (baseline - limite) * 100)
-    return max(0, min(100, score))
+    try:
+        valore_attuale = float(valore_attuale)
+        baseline = float(baseline)
+        limite = float(limite)
+    except (TypeError, ValueError):
+        return 0.0
+
+    denominatore = (limite - baseline) if is_max_limit else (baseline - limite)
+    if not np.isfinite(denominatore) or abs(denominatore) < 1e-12:
+        return 100.0
+
+    if is_max_limit:
+        score = 100 - ((valore_attuale - baseline) / denominatore * 100)
+    else:
+        score = 100 - ((baseline - valore_attuale) / denominatore * 100)
+
+    if not np.isfinite(score):
+        return 0.0
+    return max(0.0, min(100.0, score))
 
 @st.cache_data(ttl=300) 
 def load_data(impianto_selezionato):
@@ -71,17 +194,17 @@ def load_data(impianto_selezionato):
                 offset += limit
             return all_data
 
-        df_ro = pd.DataFrame(fetch_all(config["tab_ro"]))
-        df_uf = pd.DataFrame(fetch_all(config["tab_uf"])) if config["has_uf"] else pd.DataFrame()
-        df_nas = pd.DataFrame(fetch_all(config["tab_nas"]))
+        df_ro = normalizza_dataframe(pd.DataFrame(fetch_all(config["tab_ro"])))
+        df_uf = normalizza_dataframe(pd.DataFrame(fetch_all(config["tab_uf"]))) if config["has_uf"] else pd.DataFrame()
+        df_nas = normalizza_dataframe(pd.DataFrame(fetch_all(config["tab_nas"])))
         return df_ro, df_uf, df_nas, "☁️ Cloud Supabase"
     
     except Exception as e:
         conn = sqlite3.connect(DB_NAME)
         try:
-            df_ro = pd.read_sql_query(f"SELECT * FROM {config['tab_ro']} ORDER BY timestamp ASC", conn)
-            df_uf = pd.read_sql_query(f"SELECT * FROM {config['tab_uf']} ORDER BY timestamp ASC", conn) if config["has_uf"] else pd.DataFrame()
-            df_nas = pd.read_sql_query(f"SELECT * FROM {config['tab_nas']} ORDER BY timestamp ASC", conn)
+            df_ro = normalizza_dataframe(pd.read_sql_query(f"SELECT * FROM {config['tab_ro']} ORDER BY timestamp ASC", conn))
+            df_uf = normalizza_dataframe(pd.read_sql_query(f"SELECT * FROM {config['tab_uf']} ORDER BY timestamp ASC", conn)) if config["has_uf"] else pd.DataFrame()
+            df_nas = normalizza_dataframe(pd.read_sql_query(f"SELECT * FROM {config['tab_nas']} ORDER BY timestamp ASC", conn))
         except Exception: 
             df_ro, df_uf, df_nas = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         conn.close()
@@ -182,7 +305,11 @@ if __name__ == '__main__':
                 c1.metric("Flusso UF", f"{latest_uf['fit001']:.2f} m³/h", f"{latest_uf['fit001'] - baseline_uf['fit001']:+.2f}")
                 c2.metric("TMP UF", f"{latest_uf['uftmp']:.2f} bar", f"{latest_uf['uftmp'] - baseline_uf['uftmp']:+.2f}", delta_color="inverse")
                 c3.metric("ΔP Filtro", f"{latest_uf['dpscf']:.2f} bar", f"{latest_uf['dpscf'] - baseline_uf['dpscf']:+.2f}", delta_color="inverse")
-                st.plotly_chart(px.line(df_uf, x='date_str', y=['uftmp', 'dpscf'], markers=True, title="Trend Pressioni UF"), use_container_width=True)
+                fig = crea_grafico_linee(df_uf, 'date_str', ['uftmp', 'dpscf'], title="Trend Pressioni UF", markers=True)
+                if fig is not None:
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("Dati UF insufficienti per il grafico.")
 
         # ---------------------------------------------------------
         elif sezione_selezionata == "⚡ Inverter & Pompe":
@@ -199,8 +326,11 @@ if __name__ == '__main__':
                 df_p_plot = df_nas[(df_nas['nas_id'] == pompa_sel) & (df_nas['freq'] > 1.0)].copy()
                 
                 if not df_p_plot.empty and 'cosphi' in df_p_plot.columns and df_p_plot['cosphi'].notnull().any():
-                    fig = px.line(df_p_plot, x='date_str', y='cosphi', title=f"Trend Cosφ - {pompa_sel}")
-                    st.plotly_chart(fig, use_container_width=True)
+                    fig = crea_grafico_linee(df_p_plot, 'date_str', 'cosphi', title=f"Trend Cosφ - {pompa_sel}")
+                    if fig is not None:
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info(f"Dati Cosφ non validi per {pompa_sel}.")
                 else:
                     st.info(f"Dati Cosφ non disponibili o insufficienti per {pompa_sel}.")
 
@@ -211,10 +341,18 @@ if __name__ == '__main__':
             date_range = st.date_input("Seleziona Intervallo:", value=[df_merged['DataOra'].min().date(), df_merged['DataOra'].max().date()])
             if len(date_range) == 2:
                 df_filtered = df_merged[(df_merged['DataOra'].dt.date >= date_range[0]) & (df_merged['DataOra'].dt.date <= date_range[1])]
-                cols = sorted([c for c in df_filtered.columns if c not in ['timestamp', 'date_str', 'DataOra']])
+                cols = sorted([
+                    c for c in df_filtered.select_dtypes(include=[np.number]).columns
+                    if c not in ['timestamp']
+                ])
                 def_col = ['pit003_RO'] if 'pit003_RO' in cols else (['pit003'] if 'pit003' in cols else [])
                 selected_cols = st.multiselect("Scegli parametri:", options=cols, default=def_col)
-                if selected_cols: st.plotly_chart(px.line(df_filtered, x='DataOra', y=selected_cols, markers=True), use_container_width=True)
+                if selected_cols:
+                    fig = crea_grafico_linee(df_filtered, 'DataOra', selected_cols, markers=True)
+                    if fig is not None:
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("Nessun dato numerico valido nell'intervallo selezionato.")
 
         # ---------------------------------------------------------
         elif sezione_selezionata == "🔮 Manutenzione Predittiva":
@@ -260,11 +398,15 @@ if __name__ == '__main__':
                     col_a, col_b = st.columns([1, 2])
                     with col_a:
                         st.metric("Indice ASTM", f"{latest_ro['perm_norm_smooth']:.2f}")
-                        st.warning(f"CIP tra {g_ro} gg.") if g_ro != 999 else st.success("Stabile")
+                        if g_ro != 999:
+                            st.warning(f"CIP tra {g_ro} gg.")
+                        else:
+                            st.success("Stabile")
                     with col_b:
-                        fig = px.line(df_ro, x='date_str', y='perm_norm_smooth')
-                        fig.add_hline(y=L_PERM_RO, line_color='red')
-                        st.plotly_chart(fig, use_container_width=True)
+                        fig = crea_grafico_linee(df_ro, 'date_str', 'perm_norm_smooth')
+                        if fig is not None:
+                            fig.add_hline(y=L_PERM_RO, line_color='red')
+                            st.plotly_chart(fig, use_container_width=True)
 
             with t[2]:
                 g_dp = stima_giorni_rimanenti(df_ro, 'dp_ro_smooth', L_DPRO, True)
@@ -272,36 +414,43 @@ if __name__ == '__main__':
                     col_a, col_b = st.columns([1, 2])
                     with col_a:
                         st.metric("ΔP Attuale", f"{latest_ro['dp_ro_smooth']:.2f} bar")
-                        st.error(f"Rischio tra {g_dp} gg.") if g_dp != 999 else st.success("Stabile")
+                        if g_dp != 999:
+                            st.error(f"Rischio tra {g_dp} gg.")
+                        else:
+                            st.success("Stabile")
                     with col_b:
-                        fig = px.line(df_ro, x='date_str', y='dp_ro_smooth')
-                        fig.add_hline(y=L_DPRO, line_color='red')
-                        st.plotly_chart(fig, use_container_width=True)
+                        fig = crea_grafico_linee(df_ro, 'date_str', 'dp_ro_smooth')
+                        if fig is not None:
+                            fig.add_hline(y=L_DPRO, line_color='red')
+                            st.plotly_chart(fig, use_container_width=True)
             
             idx = 3
             if config_attuale["has_uf"]:
                 with t[idx]:
                     if not df_uf.empty:
-                        fig = px.line(df_uf, x='date_str', y='uftmp')
-                        fig.add_hline(y=1.5, line_color='red')
-                        st.plotly_chart(fig, use_container_width=True)
+                        fig = crea_grafico_linee(df_uf, 'date_str', 'uftmp')
+                        if fig is not None:
+                            fig.add_hline(y=1.5, line_color='red')
+                            st.plotly_chart(fig, use_container_width=True)
                 idx += 1
                 
             if config_attuale["has_bag_filters"]:
                 with t[idx]:
                     df_calze = df_ro[df_ro['pit007'] > 0.05]
                     if len(df_calze) > 3:
-                        fig = px.line(df_calze, x='date_str', y='pit007', title="Intasamento Filtri a Calza (ΔP)")
-                        fig.add_hline(y=L_DP_CALZE, line_color='red')
-                        st.plotly_chart(fig, use_container_width=True)
+                        fig = crea_grafico_linee(df_calze, 'date_str', 'pit007', title="Intasamento Filtri a Calza (ΔP)")
+                        if fig is not None:
+                            fig.add_hline(y=L_DP_CALZE, line_color='red')
+                            st.plotly_chart(fig, use_container_width=True)
                 idx += 1
                 
             with t[idx]:
                 df_cf = df_ro[df_ro['dp_cf01'] > 0.05]
                 if len(df_cf) > 3:
-                    fig = px.line(df_cf, x='date_str', y='dp_cf01', title="Intasamento Cartucce CF01")
-                    fig.add_hline(y=L_DPCF01, line_color='red')
-                    st.plotly_chart(fig, use_container_width=True)
+                    fig = crea_grafico_linee(df_cf, 'date_str', 'dp_cf01', title="Intasamento Cartucce CF01")
+                    if fig is not None:
+                        fig.add_hline(y=L_DPCF01, line_color='red')
+                        st.plotly_chart(fig, use_container_width=True)
             idx += 1
             
             with t[idx]:
@@ -310,7 +459,11 @@ if __name__ == '__main__':
                     df_p_plot = df_nas[(df_nas['nas_id'] == pompa_sel) & (df_nas['freq'] > 10)].copy()
                     if not df_p_plot.empty:
                         df_p_plot['indice_coppia'] = df_p_plot['current'] / df_p_plot['freq']
-                        st.plotly_chart(px.line(df_p_plot, x='date_str', y='cosphi', title="Salute Statore (Cosφ)"), use_container_width=True)
+                        fig = crea_grafico_linee(df_p_plot, 'date_str', 'cosphi', title="Salute Statore (Cosφ)")
+                        if fig is not None:
+                            st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            st.info("Dati Cosφ non validi per la pompa selezionata.")
 
         # ---------------------------------------------------------
         elif sezione_selezionata == "⚖️ Confronto Periodi":
