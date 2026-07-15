@@ -433,9 +433,24 @@ if __name__ == '__main__':
             
             st.markdown("---")
             st.subheader("Parametri Acqua (Extra)")
-            col_ph, col_cond = st.columns(2)
-            col_ph.metric("pH Permeato", f"{latest_ro['ait005']:.2f}" if latest_ro['ait005'] > 0 else "N/D")
-            col_cond.metric("Conducibilità Permeato", f"{latest_ro['ait002']:.1f} µS/cm")
+            col_ph, col_cond_feed, col_cond_perm = st.columns(3)
+
+            ph_permeato = pd.to_numeric(pd.Series([latest_ro.get('ait005', np.nan)]), errors='coerce').iloc[0]
+            cond_alimento = pd.to_numeric(pd.Series([latest_ro.get('ait001', np.nan)]), errors='coerce').iloc[0]
+            cond_permeato = pd.to_numeric(pd.Series([latest_ro.get('ait002', np.nan)]), errors='coerce').iloc[0]
+
+            col_ph.metric(
+                "pH Permeato",
+                f"{ph_permeato:.2f}" if pd.notna(ph_permeato) and ph_permeato > 0 else "N/D"
+            )
+            col_cond_feed.metric(
+                "Conducibilità Alimento",
+                f"{cond_alimento:.1f} µS/cm" if pd.notna(cond_alimento) and cond_alimento > 0 else "N/D"
+            )
+            col_cond_perm.metric(
+                "Conducibilità Permeato",
+                f"{cond_permeato:.1f} µS/cm" if pd.notna(cond_permeato) and cond_permeato > 0 else "N/D"
+            )
 
             st.markdown("#### Portate istantanee — tutti i FIT")
             render_metriche_fit(df_ro, config_attuale)
