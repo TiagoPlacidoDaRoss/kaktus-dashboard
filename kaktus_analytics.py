@@ -543,6 +543,41 @@ def render_confronto(df_ro, df_uf, config_attuale):
 # =========================================================
 # MAIN DASHBOARD ENTRY POINT
 # =========================================================
+
+def render_atm(impianto_scelto):
+    st.header("🏢 Telemetria ATM (Distribuito)")
+    
+    # Mappatura per filtrare per impianto (basata sulla logica usata nello scraper)
+    nome_impianto = "Kaktus" if "Kaktus" in impianto_scelto else "Pingwe"
+    
+    try:
+        from supabase import create_client
+        supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+        
+        # Recupero dati per l'impianto specifico
+        res = supabase.table("storico_atm").select("*").eq("impianto", nome_impianto).order("data_rif", desc=True).execute()
+        df_atm = pd.DataFrame(res.data)
+        
+        if df_atm.empty:
+            st.info("Nessun dato ATM trovato per questo impianto.")
+            return
+
+        # Visualizzazione Metriche
+        col1, col2 = st.columns(2)
+        totale_litri = df_atm['litri_erogati'].sum()
+        col1.metric("Totale Litri Erogati", f"{totale_litri:,.0f} L")
+        col2.metric("Media Giornaliera", f"{df_atm['litri_erogati'].mean():,.0f} L/giorno")
+        
+        # Grafico
+        fig = px.bar(df_atm, x="data_rif", y="litri_erogati", color="atm_id", title=f"Distribuzione Erogazioni - {nome_impianto}")
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Tabella
+        st.dataframe(df_atm[['data_rif', 'atm_id', 'litri_erogati']], use_container_width=True)
+        
+    except Exception as e:
+        st.error(f"Errore caricamento dati ATM: {e}")
+
 if __name__ == '__main__':
     st.set_page_config(page_title="Water Partners Fleet Management", layout="wide")
 
@@ -552,7 +587,8 @@ if __name__ == '__main__':
     impianto_scelto = st.sidebar.selectbox("🌍 Seleziona Impianto:", list(CONFIG_IMPIANTI.keys()))
     config_attuale = CONFIG_IMPIANTI[impianto_scelto]
 
-    menu_opzioni = ["🔵 Osmosi Inversa (RO)", "⚡ Inverter & Pompe", "📈 Grafici Personalizzati", "🔮 Manutenzione Predittiva", "⚖️ Confronto Periodi"]
+    menu_opzioni = ["🔵 Osmosi Inversa (RO)", "⚡ Inverter & Pompe", "📈 Grafici Personalizzati", 
+                "🔮 Manutenzione Predittiva", "⚖️ Confronto Periodi", "🏢 Dati ATM"]
     if config_attuale["has_uf"]: menu_opzioni.insert(1, "🟢 Ultrafiltrazione (UF)")
         
     sezione_selezionata = st.sidebar.radio("Seleziona Area Analisi:", menu_opzioni)
@@ -582,3 +618,5 @@ if __name__ == '__main__':
             render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf, latest_uf, config_attuale, impianto_scelto)
         elif sezione_selezionata == "⚖️ Confronto Periodi":
             render_confronto(df_ro, df_uf, config_attuale)
+	elif sezione_selezionata == "🏢 Dati ATM":
+    	    render_atm(impianto_scelto)
