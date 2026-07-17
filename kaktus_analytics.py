@@ -619,4 +619,4 @@ if __name__ == '__main__':
         elif sezione_selezionata == "⚖️ Confronto Periodi":
             render_confronto(df_ro, df_uf, config_attuale)
 	elif sezione_selezionata == "🏢 Dati ATM":
-    	    render_atm(impianto_scelto)
+            render_confronto(df_ro, df_uf, config_attuale)
