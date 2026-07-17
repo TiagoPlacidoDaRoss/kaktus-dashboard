@@ -4,6 +4,7 @@ import sqlite3
 import datetime
 import numpy as np
 import plotly.graph_objects as go
+import plotly.express as px
 
 DB_NAME = "kaktus_analytics.db"
 
