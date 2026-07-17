@@ -661,4 +661,4 @@ if __name__ == '__main__':
         elif sezione_selezionata == "🏢 Dati ATM":
             render_atm(impianto_scelto)
         elif sezione_selezionata == "📄 Produzione PDF":
-            render_atm(impianto_scelto)
+            render_produzione_pdf(impianto_scelto)
