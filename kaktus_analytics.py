@@ -578,6 +578,9 @@ def render_atm(impianto_scelto):
     except Exception as e:
         st.error(f"Errore caricamento dati ATM: {e}")
 
+# =========================================================
+# MAIN DASHBOARD ENTRY POINT
+# =========================================================
 if __name__ == '__main__':
     st.set_page_config(page_title="Water Partners Fleet Management", layout="wide")
 
@@ -588,8 +591,9 @@ if __name__ == '__main__':
     config_attuale = CONFIG_IMPIANTI[impianto_scelto]
 
     menu_opzioni = ["🔵 Osmosi Inversa (RO)", "⚡ Inverter & Pompe", "📈 Grafici Personalizzati", 
-                "🔮 Manutenzione Predittiva", "⚖️ Confronto Periodi", "🏢 Dati ATM"]
-    if config_attuale["has_uf"]: menu_opzioni.insert(1, "🟢 Ultrafiltrazione (UF)")
+                    "🔮 Manutenzione Predittiva", "⚖️ Confronto Periodi", "🏢 Dati ATM"]
+    if config_attuale["has_uf"]: 
+        menu_opzioni.insert(1, "🟢 Ultrafiltrazione (UF)")
         
     sezione_selezionata = st.sidebar.radio("Seleziona Area Analisi:", menu_opzioni)
     
@@ -618,5 +622,5 @@ if __name__ == '__main__':
             render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf, latest_uf, config_attuale, impianto_scelto)
         elif sezione_selezionata == "⚖️ Confronto Periodi":
             render_confronto(df_ro, df_uf, config_attuale)
-	elif sezione_selezionata == "🏢 Dati ATM":
-            render_confronto(df_ro, df_uf, config_attuale)
+        elif sezione_selezionata == "🏢 Dati ATM":
+            render_atm(impianto_scelto)
