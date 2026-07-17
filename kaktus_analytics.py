@@ -580,6 +580,304 @@ def render_confronto(df_ro, df_uf, config_attuale):
 # MAIN DASHBOARD ENTRY POINT
 # =========================================================
 
+
+@st.cache_data(ttl=300)
+def load_produzione_atm(impianto_scelto):
+    """Carica e normalizza produzione da PDF e vendite ATM per l'impianto scelto."""
+    nome_db = "Kaktus" if "Kaktus" in impianto_scelto else "Pingwe"
+
+    from supabase import create_client
+    supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+
+    res_pdf = (
+        supabase.table("produzione_pdf")
+        .select("*")
+        .eq("impianto", nome_db)
+        .order("data_rif", desc=False)
+        .execute()
+    )
+    res_atm = (
+        supabase.table("storico_atm")
+        .select("*")
+        .eq("impianto", nome_db)
+        .order("data_rif", desc=False)
+        .execute()
+    )
+
+    df_pdf = pd.DataFrame(res_pdf.data)
+    df_atm = pd.DataFrame(res_atm.data)
+
+    if not df_pdf.empty:
+        df_pdf["data_rif"] = pd.to_datetime(df_pdf["data_rif"], errors="coerce").dt.normalize()
+        for col in ["permeato", "concentrato", "insolation"]:
+            if col in df_pdf.columns:
+                df_pdf[col] = pd.to_numeric(df_pdf[col], errors="coerce")
+        df_pdf = df_pdf.dropna(subset=["data_rif"]).sort_values("data_rif").reset_index(drop=True)
+
+    if not df_atm.empty:
+        df_atm["data_rif"] = pd.to_datetime(df_atm["data_rif"], errors="coerce").dt.normalize()
+        if "litri_erogati" in df_atm.columns:
+            df_atm["litri_erogati"] = pd.to_numeric(df_atm["litri_erogati"], errors="coerce")
+        df_atm = df_atm.dropna(subset=["data_rif"]).sort_values("data_rif").reset_index(drop=True)
+
+    return df_pdf, df_atm, nome_db
+
+
+def render_produzione_atm(impianto_scelto):
+    st.header("📊 Produzione e vendite ATM")
+
+    try:
+        df_pdf, df_atm, nome_db = load_produzione_atm(impianto_scelto)
+    except Exception as e:
+        st.error(f"Errore nel caricamento dei dati Produzione/ATM: {e}")
+        return
+
+    if df_pdf.empty and df_atm.empty:
+        st.info(f"Nessun dato di produzione o ATM trovato per {nome_db}.")
+        return
+
+    # Elenco dei mesi disponibili nelle due sorgenti.
+    mesi = set()
+    if not df_pdf.empty:
+        mesi.update(df_pdf["data_rif"].dt.to_period("M").astype(str).tolist())
+    if not df_atm.empty:
+        mesi.update(df_atm["data_rif"].dt.to_period("M").astype(str).tolist())
+    mesi = sorted(mesi, reverse=True)
+
+    nomi_mesi = {
+        1: "Gennaio", 2: "Febbraio", 3: "Marzo", 4: "Aprile",
+        5: "Maggio", 6: "Giugno", 7: "Luglio", 8: "Agosto",
+        9: "Settembre", 10: "Ottobre", 11: "Novembre", 12: "Dicembre"
+    }
+
+    def etichetta_mese(valore):
+        periodo = pd.Period(valore, freq="M")
+        return f"{nomi_mesi[periodo.month]} {periodo.year}"
+
+    col_mese, col_serie = st.columns([1, 2])
+    with col_mese:
+        mese_scelto = st.selectbox(
+            "Mese da analizzare:",
+            options=mesi,
+            format_func=etichetta_mese
+        )
+
+    serie_disponibili = []
+    if not df_pdf.empty and "permeato" in df_pdf.columns:
+        serie_disponibili.append("Produzione permeato")
+    if not df_atm.empty and "litri_erogati" in df_atm.columns:
+        serie_disponibili.append("Vendite ATM")
+
+    with col_serie:
+        serie_scelte = st.multiselect(
+            "Dati da visualizzare:",
+            options=serie_disponibili,
+            default=serie_disponibili,
+            help="Puoi visualizzare soltanto la produzione, soltanto le vendite ATM oppure entrambe."
+        )
+
+    mostra_concentrato = False
+    if "Produzione permeato" in serie_scelte and not df_pdf.empty and "concentrato" in df_pdf.columns:
+        mostra_concentrato = st.checkbox(
+            "Mostra anche il concentrato nel grafico",
+            value=False
+        )
+
+    periodo = pd.Period(mese_scelto, freq="M")
+    inizio_mese = periodo.start_time.normalize()
+    fine_mese = periodo.end_time.normalize()
+    oggi = pd.Timestamp.today().normalize()
+    fine_periodo_media = min(fine_mese, oggi) if periodo == oggi.to_period("M") else fine_mese
+    giorni_periodo = max(1, (fine_periodo_media - inizio_mese).days + 1)
+
+    # Aggregazione giornaliera: eventuali più PDF o più ATM nello stesso giorno vengono sommati.
+    if not df_pdf.empty:
+        pdf_mese = df_pdf[df_pdf["data_rif"].dt.to_period("M") == periodo].copy()
+        aggregazioni_pdf = {}
+        if "permeato" in pdf_mese.columns:
+            aggregazioni_pdf["permeato"] = "sum"
+        if "concentrato" in pdf_mese.columns:
+            aggregazioni_pdf["concentrato"] = "sum"
+        if "insolation" in pdf_mese.columns:
+            aggregazioni_pdf["insolation"] = "mean"
+
+        prod_giorno = (
+            pdf_mese.groupby("data_rif", as_index=False)
+            .agg(aggregazioni_pdf)
+            if aggregazioni_pdf else pd.DataFrame(columns=["data_rif"])
+        )
+    else:
+        pdf_mese = pd.DataFrame()
+        prod_giorno = pd.DataFrame(columns=["data_rif", "permeato", "concentrato"])
+
+    if not df_atm.empty:
+        atm_mese = df_atm[df_atm["data_rif"].dt.to_period("M") == periodo].copy()
+        atm_giorno = (
+            atm_mese.groupby("data_rif", as_index=False)["litri_erogati"]
+            .sum()
+            .rename(columns={"litri_erogati": "atm_litri"})
+        )
+    else:
+        atm_mese = pd.DataFrame()
+        atm_giorno = pd.DataFrame(columns=["data_rif", "atm_litri"])
+
+    calendario = pd.DataFrame({
+        "data_rif": pd.date_range(inizio_mese, fine_periodo_media, freq="D")
+    })
+    giornaliero = calendario.merge(prod_giorno, on="data_rif", how="left")
+    giornaliero = giornaliero.merge(atm_giorno, on="data_rif", how="left")
+    if "atm_litri" not in giornaliero.columns:
+        giornaliero["atm_litri"] = np.nan
+    giornaliero["atm_m3"] = giornaliero["atm_litri"] / 1000.0
+
+    ha_produzione = "permeato" in giornaliero.columns and giornaliero["permeato"].notna().any()
+    ha_atm = giornaliero["atm_litri"].notna().any()
+
+    totale_prodotto = giornaliero["permeato"].sum(min_count=1) if ha_produzione else np.nan
+    totale_atm_litri = giornaliero["atm_litri"].sum(min_count=1) if ha_atm else np.nan
+    totale_atm_m3 = totale_atm_litri / 1000.0 if pd.notna(totale_atm_litri) else np.nan
+
+    media_prod = totale_prodotto / giorni_periodo if pd.notna(totale_prodotto) else np.nan
+    media_atm_m3 = totale_atm_m3 / giorni_periodo if pd.notna(totale_atm_m3) else np.nan
+    media_atm_litri = totale_atm_litri / giorni_periodo if pd.notna(totale_atm_litri) else np.nan
+
+    st.subheader(f"Riepilogo — {etichetta_mese(mese_scelto)}")
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric(
+        "Totale prodotto",
+        f"{totale_prodotto:,.2f} m³" if pd.notna(totale_prodotto) else "N/D"
+    )
+    c2.metric(
+        "Totale venduto ATM",
+        f"{totale_atm_m3:,.2f} m³" if pd.notna(totale_atm_m3) else "N/D"
+    )
+    if pd.notna(totale_atm_litri):
+        c2.caption(f"{totale_atm_litri:,.0f} litri")
+
+    c3.metric(
+        "Media giornaliera prodotta",
+        f"{media_prod:,.2f} m³/giorno" if pd.notna(media_prod) else "N/D"
+    )
+    c4.metric(
+        "Media giornaliera venduta",
+        f"{media_atm_m3:,.2f} m³/giorno" if pd.notna(media_atm_m3) else "N/D"
+    )
+    if pd.notna(media_atm_litri):
+        c4.caption(f"{media_atm_litri:,.0f} litri/giorno")
+
+    st.caption(
+        f"Le medie sono calcolate sui {giorni_periodo} giorni "
+        f"{'trascorsi del mese' if periodo == oggi.to_period('M') else 'del mese'}."
+    )
+
+    st.markdown("---")
+
+    if not serie_scelte:
+        st.info("Seleziona almeno una serie da visualizzare.")
+    else:
+        fig = go.Figure()
+
+        if "Produzione permeato" in serie_scelte and "permeato" in giornaliero.columns:
+            fig.add_trace(go.Bar(
+                x=giornaliero["data_rif"],
+                y=giornaliero["permeato"],
+                name="Produzione permeato",
+                marker_color="#2E86DE",
+                offsetgroup="produzione",
+                hovertemplate="%{x|%d/%m/%Y}<br>Prodotto: %{y:.2f} m³<extra></extra>"
+            ))
+
+            if mostra_concentrato and "concentrato" in giornaliero.columns:
+                fig.add_trace(go.Bar(
+                    x=giornaliero["data_rif"],
+                    y=giornaliero["concentrato"],
+                    name="Concentrato",
+                    marker_color="#85C1E9",
+                    offsetgroup="concentrato",
+                    hovertemplate="%{x|%d/%m/%Y}<br>Concentrato: %{y:.2f} m³<extra></extra>"
+                ))
+
+        if "Vendite ATM" in serie_scelte:
+            fig.add_trace(go.Bar(
+                x=giornaliero["data_rif"],
+                y=giornaliero["atm_m3"],
+                name="Vendite ATM",
+                marker_color="#F39C12",
+                offsetgroup="atm",
+                customdata=giornaliero[["atm_litri"]],
+                hovertemplate=(
+                    "%{x|%d/%m/%Y}<br>"
+                    "Venduto: %{y:.2f} m³<br>"
+                    "(%{customdata[0]:,.0f} L)<extra></extra>"
+                )
+            ))
+
+        fig.update_layout(
+            title=f"Produzione e vendite giornaliere — {etichetta_mese(mese_scelto)}",
+            xaxis_title="Data",
+            yaxis_title="Volume giornaliero (m³)",
+            barmode="group",
+            bargap=0.22,
+            bargroupgap=0.04,
+            hovermode="x unified",
+            legend_title_text="Dato",
+            margin=dict(l=20, r=20, t=60, b=20)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    tab_giorno, tab_pdf, tab_atm = st.tabs([
+        "Riepilogo giornaliero",
+        "Dettaglio produzione PDF",
+        "Dettaglio ATM"
+    ])
+
+    with tab_giorno:
+        tabella_giorno = giornaliero.copy()
+        tabella_giorno["Data"] = tabella_giorno["data_rif"].dt.strftime("%d/%m/%Y")
+        colonne_tabella = ["Data"]
+        rinomina = {}
+
+        if "permeato" in tabella_giorno.columns:
+            colonne_tabella.append("permeato")
+            rinomina["permeato"] = "Prodotto (m³)"
+        if "concentrato" in tabella_giorno.columns:
+            colonne_tabella.append("concentrato")
+            rinomina["concentrato"] = "Concentrato (m³)"
+
+        colonne_tabella.extend(["atm_litri", "atm_m3"])
+        rinomina.update({
+            "atm_litri": "Venduto ATM (L)",
+            "atm_m3": "Venduto ATM (m³)"
+        })
+
+        st.dataframe(
+            tabella_giorno[colonne_tabella].rename(columns=rinomina),
+            use_container_width=True,
+            hide_index=True
+        )
+
+    with tab_pdf:
+        if pdf_mese.empty:
+            st.info("Nessun dato di produzione PDF nel mese selezionato.")
+        else:
+            colonne_pdf = [
+                col for col in
+                ["data_rif", "permeato", "concentrato", "insolation", "file_origine"]
+                if col in pdf_mese.columns
+            ]
+            st.dataframe(pdf_mese[colonne_pdf], use_container_width=True, hide_index=True)
+
+    with tab_atm:
+        if atm_mese.empty:
+            st.info("Nessun dato ATM nel mese selezionato.")
+        else:
+            colonne_atm = [
+                col for col in ["data_rif", "atm_id", "litri_erogati"]
+                if col in atm_mese.columns
+            ]
+            st.dataframe(atm_mese[colonne_atm], use_container_width=True, hide_index=True)
+
 def render_atm(impianto_scelto):
     st.header("🏢 Telemetria ATM (Distribuito)")
     
@@ -627,7 +925,7 @@ if __name__ == '__main__':
     config_attuale = CONFIG_IMPIANTI[impianto_scelto]
 
     menu_opzioni = ["🔵 Osmosi Inversa (RO)", "⚡ Inverter & Pompe", "📈 Grafici Personalizzati", 
-                    "🔮 Manutenzione Predittiva", "⚖️ Confronto Periodi", "🏢 Dati ATM", "📄 Produzione PDF"]
+                    "🔮 Manutenzione Predittiva", "⚖️ Confronto Periodi", "📊 Produzione & ATM"]
     if config_attuale["has_uf"]: 
         menu_opzioni.insert(1, "🟢 Ultrafiltrazione (UF)")
         
@@ -637,15 +935,26 @@ if __name__ == '__main__':
     st.sidebar.markdown("---")
     st.sidebar.caption(f"Origine Dati: {source_msg}")
 
-    if df_ro_raw.empty:
+    st.title(f"Sistema di Monitoraggio - {impianto_scelto[2:]}")
+
+    if sezione_selezionata == "📊 Produzione & ATM":
+        render_produzione_atm(impianto_scelto)
+
+    elif df_ro_raw.empty:
         st.info(f"Nessun dato registrato per {impianto_scelto}. In attesa dei log...")
+
     else:
         df_ro = calcola_metriche_derivate(df_ro_raw)
         latest_ro, baseline_ro = df_ro.iloc[-1], df_ro.iloc[0]
-        latest_uf, baseline_uf = (df_uf.iloc[-1], df_uf.iloc[0]) if config_attuale["has_uf"] and not df_uf.empty else (pd.Series({'fit001': 0.0, 'uftmp': 0.0, 'dpscf': 0.0}), pd.Series({'fit001': 0.0, 'uftmp': 0.0, 'dpscf': 0.0}))
+        latest_uf, baseline_uf = (
+            (df_uf.iloc[-1], df_uf.iloc[0])
+            if config_attuale["has_uf"] and not df_uf.empty
+            else (
+                pd.Series({"fit001": 0.0, "uftmp": 0.0, "dpscf": 0.0}),
+                pd.Series({"fit001": 0.0, "uftmp": 0.0, "dpscf": 0.0})
+            )
+        )
 
-        st.title(f"Sistema di Monitoraggio - {impianto_scelto[2:]}")
-        
         if sezione_selezionata == "🔵 Osmosi Inversa (RO)":
             render_osmosi(df_ro, baseline_ro, latest_ro, config_attuale, impianto_scelto)
         elif sezione_selezionata == "🟢 Ultrafiltrazione (UF)":
@@ -655,10 +964,9 @@ if __name__ == '__main__':
         elif sezione_selezionata == "📈 Grafici Personalizzati":
             render_grafici_personalizzati(df_ro, df_uf)
         elif sezione_selezionata == "🔮 Manutenzione Predittiva":
-            render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf, latest_uf, config_attuale, impianto_scelto)
+            render_predittiva(
+                df_ro, df_uf, df_nas, baseline_ro, latest_ro,
+                baseline_uf, latest_uf, config_attuale, impianto_scelto
+            )
         elif sezione_selezionata == "⚖️ Confronto Periodi":
             render_confronto(df_ro, df_uf, config_attuale)
-        elif sezione_selezionata == "🏢 Dati ATM":
-            render_atm(impianto_scelto)
-        elif sezione_selezionata == "📄 Produzione PDF":
-            render_produzione_pdf(impianto_scelto)
