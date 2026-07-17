@@ -55,6 +55,41 @@ PUMP_INSTALL_DATES = {
 # =========================================================
 # HELPER: ELABORAZIONE DATI E CACHING
 # =========================================================
+def render_produzione_pdf(impianto_scelto):
+    st.header("📄 Analisi Produzione da PDF")
+    
+    # Mappatura per filtrare il nome impianto nel database
+    # (assumendo che nella colonna 'impianto' ci sia "Kaktus" o "Pingwe")
+    nome_db = "Kaktus" if "Kaktus" in impianto_scelto else "Pingwe"
+    
+    try:
+        from supabase import create_client
+        supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+        
+        # Recupero dati per l'impianto selezionato
+        res = supabase.table("produzione_pdf").select("*").eq("impianto", nome_db).order("data_rif", desc=False).execute()
+        df_pdf = pd.DataFrame(res.data)
+        
+        if df_pdf.empty:
+            st.info(f"Nessun dato PDF trovato per {nome_db}.")
+            return
+
+        # Conversione date e grafici
+        df_pdf['data_rif'] = pd.to_datetime(df_pdf['data_rif'])
+        
+        col1, col2 = st.columns(2)
+        col1.metric("Totale Permeato", f"{df_pdf['permeato'].sum():,.2f} m³")
+        col2.metric("Media Insolazione", f"{df_pdf['insolation'].mean():,.2f} kWh/m²")
+        
+        # Grafico Trend Produzione
+        fig = px.line(df_pdf, x="data_rif", y=["permeato", "concentrato"], title=f"Trend Produzione - {nome_db}")
+        st.plotly_chart(fig, use_container_width=True)
+        
+        st.dataframe(df_pdf[['data_rif', 'permeato', 'concentrato', 'insolation', 'file_origine']], use_container_width=True)
+        
+    except Exception as e:
+        st.error(f"Errore caricamento dati PDF: {e}")
+
 def normalizza_dataframe(df):
     if df is None or df.empty: return pd.DataFrame() if df is None else df.copy()
     out = df.copy()
@@ -592,7 +627,7 @@ if __name__ == '__main__':
     config_attuale = CONFIG_IMPIANTI[impianto_scelto]
 
     menu_opzioni = ["🔵 Osmosi Inversa (RO)", "⚡ Inverter & Pompe", "📈 Grafici Personalizzati", 
-                    "🔮 Manutenzione Predittiva", "⚖️ Confronto Periodi", "🏢 Dati ATM"]
+                    "🔮 Manutenzione Predittiva", "⚖️ Confronto Periodi", "🏢 Dati ATM", "📄 Produzione PDF"]
     if config_attuale["has_uf"]: 
         menu_opzioni.insert(1, "🟢 Ultrafiltrazione (UF)")
         
@@ -624,4 +659,6 @@ if __name__ == '__main__':
         elif sezione_selezionata == "⚖️ Confronto Periodi":
             render_confronto(df_ro, df_uf, config_attuale)
         elif sezione_selezionata == "🏢 Dati ATM":
+            render_atm(impianto_scelto)
+        elif sezione_selezionata == "📄 Produzione PDF":
             render_atm(impianto_scelto)
