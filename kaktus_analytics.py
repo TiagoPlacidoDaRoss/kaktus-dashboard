@@ -6,6 +6,222 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 
+
+# =========================================================
+# INTERFACCIA BILINGUE ITALIANO / ENGLISH
+# =========================================================
+_RAW_ST = st
+UI_LANGUAGE = "it"
+
+_EXACT_TRANSLATIONS = {'N/D': 'N/A', 'Gennaio': 'January', 'Febbraio': 'February', 'Marzo': 'March', 'Aprile': 'April', 'Maggio': 'May', 'Giugno': 'June', 'Luglio': 'July', 'Agosto': 'August', 'Settembre': 'September', 'Ottobre': 'October', 'Novembre': 'November', 'Dicembre': 'December', '🌵 GW012 Kaktus (Capo Verde)': '🌵 GW012 Kaktus (Cape Verde)', '🌴 Pingwe (Zanzibar)': '🌴 Pingwe (Zanzibar)', 'Gestione Flotta': 'Fleet Management', '🌍 Seleziona Impianto:': '🌍 Select plant:', 'Seleziona Area Analisi:': 'Select analysis area:', '🔵 Osmosi Inversa (RO)': '🔵 Reverse Osmosis (RO)', '🟢 Ultrafiltrazione (UF)': '🟢 Ultrafiltration (UF)', '⚡ Inverter & Pompe': '⚡ Inverters & Pumps', '📈 Grafici Personalizzati': '📈 Custom Charts', '🔮 Manutenzione Predittiva': '🔮 Predictive Maintenance', '⚖️ Confronto Periodi': '⚖️ Period Comparison', '📊 Produzione & ATM': '📊 Production & ATM', '☁️ Cloud Supabase': '☁️ Supabase Cloud', '🖥️ Locale SQLite': '🖥️ Local SQLite', 'Recovery': 'Recovery', 'Reiezione (Norm)': 'Rejection (Norm.)', 'ΔP Filtri a Calza': 'Bag-filter ΔP', 'Consumo SEC': 'SEC consumption', 'ΔP Cartuccia CF01': 'CF01 cartridge ΔP', 'ΔP Membrane': 'Membrane ΔP', 'Parametri Acqua (Extra)': 'Water Parameters (Additional)', 'pH Permeato': 'Permeate pH', 'Conducibilità Alimento': 'Feed conductivity', 'Conducibilità Permeato': 'Permeate conductivity', 'Grafici di Tendenza': 'Trend Charts', 'Dati Tabellari ed Esportazione': 'Tabular Data and Export', '📥 Esporta Storico in formato CSV': '📥 Export history as CSV', '📥 Esporta CSV': '📥 Export CSV', 'Nessun dato UF.': 'No UF data.', 'Flusso UF': 'UF flow', 'TMP UF': 'UF TMP', 'ΔP Filtro': 'Filter ΔP', 'Trend Pressioni UF': 'UF pressure trends', 'Nessun dato inverter.': 'No inverter data.', 'Pompa': 'Pump', 'Nome Pompa': 'Pump name', 'Analisi Salute Statore': 'Stator Health Analysis', 'Seleziona pompa per trend Cosφ:': 'Select pump for Cosφ trend:', 'Seleziona Intervallo:': 'Select range:', 'Scegli parametri:': 'Select parameters:', '🔮 Analisi Predittiva e Stato di Salute': '🔮 Predictive Analysis and Health Status', '📊 Cruscotto Salute': '📊 Health Dashboard', '💧 Membrane (Perm)': '💧 Membranes (Permeability)', '🧱 Fouling Spaziatori (ΔP)': '🧱 Spacer Fouling (ΔP)', '🟢 Membrane UF': '🟢 UF Membranes', '🧦 Filtri a Calza': '🧦 Bag Filters', '🗑️ Cartucce CF01': '🗑️ CF01 Cartridges', '⛨ Diagnostica Motori': '⛨ Motor Diagnostics', 'Membrane RO (ASTM)': 'RO membranes (ASTM)', 'Spaziatori RO (ΔP)': 'RO spacers (ΔP)', 'Filtro Cartucce CF01': 'CF01 cartridge filter', 'Membrane UF': 'UF membranes', 'Filtri a Calza': 'Bag filters', 'Stabile - Nessun intervento': 'Stable — No intervention required', 'Dati insufficienti': 'Insufficient data', 'Indice Pulito a 25°C': 'Clean index at 25°C', 'Situazione Stabile': 'Stable condition', 'ΔP Attuale': 'Current ΔP', 'Situazione Idraulica Stabile': 'Stable hydraulic condition', 'Stato Elettrico': 'Electrical status', 'Stato Meccanico': 'Mechanical status', 'Deriva Cosφ (Elettrica)': 'Cosφ drift (Electrical)', 'Degrado A/Hz (Meccanica)': 'A/Hz degradation (Mechanical)', '🔴 Critico': '🔴 Critical', '🟡 Attenzione': '🟡 Warning', '🟢 Ottimale': '🟢 Optimal', 'Seleziona pompa per dettaglio trend storico:': 'Select pump for detailed historical trend:', 'Fattore di potenza': 'Power factor', '⚖️ Analisi Comparativa (A/B Test)': '⚖️ Comparative Analysis (A/B Test)', '📊 Seleziona il Parametro da analizzare:': '📊 Select the parameter to analyse:', 'Date Periodo A:': 'Period A dates:', 'Date Periodo B:': 'Period B dates:', 'Media Periodo A': 'Period A average', 'Media Periodo B': 'Period B average', 'Variazione Percentuale': 'Percentage change', 'Permeabilità Normalizzata (Fouling RO)': 'Normalised permeability (RO fouling)', 'Salto di Pressione (ΔP RO)': 'Pressure drop (RO ΔP)', 'Reiezione Salina (%)': 'Salt rejection (%)', 'Consumo Specifico (SEC)': 'Specific energy consumption (SEC)', 'TMP Ultrafiltrazione': 'Ultrafiltration TMP', '📊 Produzione e vendite ATM': '📊 Production and ATM Sales', 'Mese da analizzare:': 'Month to analyse:', 'Dati da visualizzare nel grafico:': 'Data to display in the chart:', 'Produzione': 'Production', 'Vendite ATM': 'ATM sales', 'Concentrato': 'Concentrate', 'Totale prodotto': 'Total production', 'Totale venduto ATM': 'Total ATM sales', 'Totale concentrato': 'Total concentrate', 'Media giornaliera prodotta': 'Average daily production', 'Media giornaliera venduta': 'Average daily ATM sales', 'Media giornaliera concentrato': 'Average daily concentrate', 'Medie giornaliere per periodo personalizzato': 'Daily averages for a custom period', 'Seleziona il periodo da analizzare:': 'Select the period to analyse:', 'Media produzione nel periodo': 'Average production in the period', 'Media vendite ATM nel periodo': 'Average ATM sales in the period', 'Media concentrato nel periodo': 'Average concentrate in the period', '#### Grafico del periodo selezionato': '#### Selected-period chart', '#### Grafico del mese selezionato': '#### Selected-month chart', 'Riepilogo giornaliero': 'Daily summary', 'Dettaglio produzione PDF': 'PDF production details', 'Dettaglio ATM': 'ATM details', 'Data': 'Date', 'Prodotto (m³)': 'Production (m³)', 'Concentrato (m³)': 'Concentrate (m³)', 'Venduto ATM (L)': 'ATM sales (L)', 'Venduto ATM (m³)': 'ATM sales (m³)', 'data_rif': 'Reference date', 'permeato': 'Permeate', 'concentrato': 'Concentrate', 'insolation': 'Solar irradiation', 'file_origine': 'Source file', 'litri_erogati': 'Dispensed litres', 'atm_id': 'ATM ID', 'atm_litri': 'ATM litres', 'atm_m3': 'ATM m³', '🏢 Telemetria ATM (Distribuito)': '🏢 ATM Telemetry (Distributed)', 'Totale Litri Erogati': 'Total litres dispensed', 'Media Giornaliera': 'Daily average', '📄 Analisi Produzione da PDF': '📄 PDF Production Analysis', 'Totale Permeato': 'Total permeate', 'Media Insolazione': 'Average solar irradiation', 'Flusso Permeato': 'Permeate flow', 'Flusso Concentrato': 'Concentrate flow', 'Flusso Potabile (Uscita)': 'Potable-water flow (Outlet)', 'Pompa HP 1 (RO)': 'HP pump 1 (RO)', 'Pompa HP 2 (RO)': 'HP pump 2 (RO)', 'Pompa HP 3 (RO)': 'HP pump 3 (RO)', 'Pompa HP 4 (RO)': 'HP pump 4 (RO)', 'Pompa Pozzo Kaktus': 'Kaktus well pump', 'Pompa Alimento (RO)': 'RO feed pump', 'Pompa Travaso TK10-3': 'TK10-3 transfer pump', 'Pompa Pozzo Toninho': 'Toninho well pump', 'Pompa Travaso TK11-3': 'TK11-3 transfer pump', 'Pompa Pozzo 1 (P01)': 'Well pump 1 (P01)', 'Pompa Pozzo 2 (P05)': 'Well pump 2 (P05)', 'Pompa ATM Standard': 'Standard ATM pump', 'Pompa ATM Premium': 'Premium ATM pump', 'Pompa Ausiliaria (NAS5)': 'Auxiliary pump (NAS5)', 'Pompa Sconosciuta': 'Unknown pump', 'P. Ingresso (bar)': 'Inlet pressure (bar)', 'P. Uscita (bar)': 'Outlet pressure (bar)', 'Permeato (m³/h)': 'Permeate (m³/h)', 'Portata (m³/h)': 'Flow (m³/h)', 'Pressione (bar)': 'Pressure (bar)', 'Permeabilità (m³/h/bar)': 'Permeability (m³/h/bar)', 'Permeabilità normalizzata': 'Normalised permeability', 'Salto di pressione (bar)': 'Pressure drop (bar)', 'ΔP (bar)': 'ΔP (bar)', 'Volume giornaliero (m³)': 'Daily volume (m³)', 'Dato': 'Data series', 'Baseline': 'Baseline', 'Limite': 'Limit', 'Previsione': 'Forecast', 'Regressione': 'Regression', 'Previsione fouling': 'Fouling forecast', 'Previsione intasamento': 'Clogging forecast', 'Trend reale (media 24h)': 'Actual trend (24 h average)', 'ΔP reale (media 24h)': 'Actual ΔP (24 h average)', 'ΔP reale': 'Actual ΔP', 'TMP reale': 'Actual TMP', 'Limite TMP': 'TMP limit', 'Limite sostituzione': 'Replacement limit', 'Limite CIP (85%)': 'CIP limit (85%)', 'Limite rischio CIP (+15%)': 'CIP risk limit (+15%)', 'Baseline installazione': 'Installation baseline', 'Allarme (-10%)': 'Alarm (-10%)', 'Trend (Media 24h)': 'Trend (24 h average)', 'Dato Orario': 'Hourly data', 'm³/giorno': 'm³/day', 'L/giorno': 'L/day', "💡 **Guida alla Lettura - Osmosi Inversa (RO):**\n    - **Recovery (Recupero):** La percentuale di acqua di alimento trasformata in permeato (acqua dolce).\n    - **Reiezione Salina (Normalizzata):** Indica l'efficienza chimica della membrana nel bloccare i sali, depurata matematicamente dalle fluttuazioni di temperatura. Per calcolarla si usa il fattore $TCF = \\exp\\left[2640 \\cdot \\left(\\frac{1}{298.15} - \\frac{1}{T_{acqua} + 273.15}\\right)\\right]$. Valori ottimali: > 98%.\n    - **Consumo SEC:** Energia Specifica Consumata (kWh/m³). Rappresenta quanta energia è necessaria per produrre un singolo metro cubo di acqua dolce.\n    - **ΔP (Salto di Pressione):** Misura la perdita di carico idraulica tra l'ingresso e l'uscita dei vessel. Un aumento continuo segnala un'ostruzione fisica (fouling, bio-fouling o scaling inorganico).": "💡 **Reading Guide — Reverse Osmosis (RO):**\n    - **Recovery:** The percentage of feedwater converted into permeate (fresh water).\n    - **Normalised salt rejection:** The membrane's efficiency in retaining salts, mathematically corrected for temperature fluctuations. It uses the factor $TCF = \\exp\\left[2640 \\cdot \\left(\\frac{1}{298.15} - \\frac{1}{T_{water} + 273.15}\\right)\\right]$. Recommended values: > 98%.\n    - **SEC consumption:** Specific energy consumption (kWh/m³), indicating the energy required to produce one cubic metre of fresh water.\n    - **ΔP (pressure drop):** The hydraulic pressure loss between vessel inlet and outlet. A continuous increase indicates physical obstruction such as fouling, biofouling or inorganic scaling.", "💡 **Guida alla Lettura - Ultrafiltrazione (UF):**\n    - **TMP (Pressione Trans-Membrana):** È la pressione netta necessaria per forzare l'acqua ad attraversare i pori microscopici (fibre cave) della membrana di pre-trattamento. \n    - **Salute dell'Asset:** Un rapido e continuo aumento della TMP (verso la soglia di guardia di 1.5 bar) indica un intasamento dei pori (fouling irreversibile) o la necessità di rendere i cicli di controlavaggio (Backwash / CEB) più frequenti o aggressivi.": '💡 **Reading Guide — Ultrafiltration (UF):**\n    - **TMP (Transmembrane Pressure):** The net pressure required to force water through the microscopic pores (hollow fibres) of the pretreatment membrane.\n    - **Asset health:** A rapid and continuous rise in TMP towards the 1.5 bar warning threshold indicates pore blockage (irreversible fouling) or the need for more frequent or more intensive backwash/CEB cycles.', "💡 **Guida alla Lettura - Elettromeccanica Inverter:**\n    - **Cosφ (Fattore di Potenza):** Indica l'efficienza magnetica dello statore del motore elettrico. Un calo progressivo o brusco del Cosφ rispetto alla linea di base indica degrado dell'isolamento o possibili cortocircuiti tra le spire avvolte (situazione critica).\n    - **Sforzo Meccanico (A/Hz):** L'indice calcolato dal rapporto tra Corrente assorbita e Frequenza di rete. Un aumento di questo valore indica che la pompa sta chiedendo più Ampere a parità di giri di rotazione: è un forte campanello d'allarme per usura dei cuscinetti, attriti anomali o blocco della girante idraulica.": '💡 **Reading Guide — Inverter Electromechanics:**\n    - **Cosφ (power factor):** Indicates the magnetic efficiency of the electric motor stator. A gradual or sudden decrease from the baseline may indicate insulation degradation or possible turn-to-turn short circuits.\n    - **Mechanical load (A/Hz):** The ratio between current draw and operating frequency. An increase means the pump requires more current at the same speed, which may indicate bearing wear, abnormal friction or impeller blockage.', "💡 **Guida alla Lettura - Troubleshooting ed Esplorazione Libera:**\n    Questa sezione non impone regole predefinite o calcoli automatici. Puoi sovrapporre liberamente qualsiasi parametro (idraulico, chimico o elettrico) memorizzato nel database per identificare correlazioni anomale non ovvie (ad esempio: misurare in quale misura un picco di pressione dell'alimento influenza il consumo elettrico SEC). È lo strumento ideale per la *Root Cause Analysis* in caso di anomalie di sistema.": '💡 **Reading Guide — Troubleshooting and Free Exploration:**\n    This section applies no predefined rules or automatic calculations. You can freely overlay any hydraulic, chemical or electrical parameter stored in the database to identify non-obvious abnormal correlations, such as how a feed-pressure spike affects SEC. It is designed for *Root Cause Analysis* when system anomalies occur.', '💡 **Guida alla Lettura - Modello Predittivo:**\n    - **Health Score (%):** Un indicatore compreso tra 0 e 100 che rappresenta la "vita utile residua" dell\'asset prima di dover effettuare una manutenzione correttiva.\n    - **Come calcoliamo le date:** Il sistema utilizza un algoritmo di **Regressione Lineare** (usando l\'equazione $y = mx + q$) che elabora la tendenza dei dati storici. Quando la retta di regressione tracciata dal modello interseca i limiti ingegneristici predefiniti (ad esempio: una perdita del 15% sulla permeabilità iniziale), il sistema stima in modo proattivo i giorni rimanenti al lavaggio (CIP) o alla sostituzione.': "💡 **Reading Guide — Predictive Model:**\n    - **Health Score (%):** An indicator from 0 to 100 representing the asset's estimated remaining useful condition before corrective maintenance is required.\n    - **How dates are calculated:** The system uses a **linear regression** algorithm ($y = mx + q$) to evaluate the historical trend. When the regression line intersects a predefined engineering limit, such as a 15% loss of initial permeability, it estimates the remaining time before CIP or replacement.", '💡 **Guida alla Lettura - Analisi Comparativa (A/B Test e Box Plot):**\n    - **La "Scatola" (Box):** Rappresenta visivamente il 50% centrale delle letture di quel periodo (il range di funzionamento "normale"). Se la scatola si "allarga" molto, l\'impianto sta soffrendo di instabilità idraulica.\n    - **La Mediana (linea centrale):** È il valore medio effettivo di funzionamento. Se la mediana del Periodo B è palesemente disallineata da quella del Periodo A, significa che l\'impianto ha subito una deviazione strutturale (es. dopo aver cambiato le cartucce o eseguito un CIP).\n    - **I Puntini (Outliers):** Identificano singoli campioni anomali, fuori scala rispetto al normale ciclo produttivo (ad esempio: colpi d\'ariete, partenze repentine dell\'inverter). Più puntini vedi, più l\'infrastruttura ha subito shock termici o idraulici.': '💡 **Reading Guide — Comparative Analysis (A/B Test and Box Plot):**\n    - **The box:** Represents the central 50% of the readings in the period, corresponding to the normal operating range. A much wider box indicates greater hydraulic instability.\n    - **The median:** The central operating value. A clear shift in Period B compared with Period A indicates a structural change, such as after cartridge replacement or CIP.\n    - **Outliers:** Individual samples outside the normal operating distribution, such as water hammer or abrupt inverter starts. More outliers indicate more frequent hydraulic or thermal shocks.'}
+
+_PHRASE_TRANSLATIONS = {'Sistema di Monitoraggio - ': 'Monitoring System — ', 'Origine Dati: ': 'Data source: ', 'Nessun dato registrato per ': 'No data recorded for ', '. In attesa dei log...': '. Waiting for logs...', 'Nessun dato PDF trovato per ': 'No PDF data found for ', 'Errore caricamento dati PDF: ': 'Error loading PDF data: ', 'Nessun misuratore di portata FIT disponibile nei dati.': 'No FIT flow meter is available in the data.', '#### Portate istantanee — tutti i FIT': '#### Instantaneous flow rates — all FIT meters', 'Fouling: Indice di Permeabilità ASTM (Media Mobile)': 'Fouling: ASTM Permeability Index (Moving Average)', 'Dinamica Pressioni Idrauliche': 'Hydraulic Pressure Dynamics', 'Dati Cosφ non disponibili o insufficienti per ': 'Cosφ data are unavailable or insufficient for ', "Nessun dato numerico valido nell'intervallo selezionato.": 'No valid numerical data in the selected range.', 'Stimato in: ': 'Estimated in: ', ' giorni': ' days', 'Dati insufficienti per la previsione delle membrane RO.': 'Insufficient data for the RO membrane forecast.', 'Lavaggio chimico (CIP) tra **': 'Chemical cleaning (CIP) in **', 'Dati insufficienti per la previsione degli spaziatori RO.': 'Insufficient data for the RO spacer forecast.', 'Lavaggio (CIP) stimato tra **': 'Cleaning (CIP) estimated in **', 'In attesa di dati UF sufficienti...': 'Waiting for sufficient UF data...', 'Dati insufficienti per la previsione dei filtri a calza.': 'Insufficient data for the bag-filter forecast.', 'Dati insufficienti per la previsione delle cartucce CF01.': 'Insufficient data for the CF01 cartridge forecast.', 'In attesa di dati inverter sufficienti...': 'Waiting for sufficient inverter data...', 'Non ci sono abbastanza campioni validi per costruire il cruscotto motori.': 'There are not enough valid samples to build the motor dashboard.', 'Previsione Fouling Membrane RO': 'RO Membrane Fouling Forecast', 'Previsione Fouling Spaziatori RO': 'RO Spacer Fouling Forecast', 'Previsione TMP Ultrafiltrazione': 'Ultrafiltration TMP Forecast', 'Previsione Intasamento Filtri a Calza': 'Bag-filter Clogging Forecast', 'Previsione Intasamento Cartucce CF01': 'CF01 Cartridge Clogging Forecast', 'Sforzo Meccanico Relativo (A/Hz) - ': 'Relative Mechanical Load (A/Hz) — ', 'Salute Magnetica Statore (Cosφ) - ': 'Stator Magnetic Health (Cosφ) — ', 'Trend Cosφ - ': 'Cosφ Trend — ', 'Distribuzione e Stabilità: ': 'Distribution and Stability: ', 'Periodo A<br>(': 'Period A<br>(', 'Periodo B<br>(': 'Period B<br>(', 'Riepilogo mensile — ': 'Monthly summary — ', 'Le medie mensili sono calcolate su ': 'Monthly averages are calculated over ', ' trascorsi del mese': ' elapsed days of the month', ' di calendario': ' calendar days', 'La data iniziale deve precedere la data finale.': 'The start date must be earlier than the end date.', 'Periodo dal ': 'Period from ', ' al ': ' to ', ' giorni di calendario.': ' calendar days.', 'Seleziona una data iniziale e una data finale.': 'Select a start date and an end date.', 'Seleziona almeno una serie da visualizzare nel grafico.': 'Select at least one data series to display in the chart.', 'Volumi giornalieri — ': 'Daily volumes — ', 'Nessun dato di produzione PDF nel mese selezionato.': 'No PDF production data for the selected month.', 'Nessun dato ATM nel mese selezionato.': 'No ATM data for the selected month.', 'Errore nel caricamento dei dati Produzione/ATM: ': 'Error loading Production/ATM data: ', 'Nessun dato di produzione o ATM trovato per ': 'No production or ATM data found for ', 'Puoi mostrare Produzione, Vendite ATM e Concentrato singolarmente oppure in qualsiasi combinazione. Il concentrato non è selezionato di default.': 'You can display Production, ATM sales and Concentrate individually or in any combination. Concentrate is not selected by default.', 'Produzione: ': 'Production: ', 'Venduto: ': 'Sold: ', 'Concentrato: ': 'Concentrate: ', 'Trend Produzione - ': 'Production Trend — ', 'Distribuzione Erogazioni - ': 'Dispensing Distribution — ', 'Nessun dato ATM trovato per questo impianto.': 'No ATM data found for this plant.', 'Errore caricamento dati ATM: ': 'Error loading ATM data: ', ' (Sostit. ': ' (Replaced ', 'Media 24h': '24 h average', 'Permeabilità': 'Permeability', 'Reiezione': 'Rejection'}
+
+
+def tr_text(value):
+    """Traduzione lato interfaccia; i valori interni restano invariati."""
+    if UI_LANGUAGE != "en" or not isinstance(value, str):
+        return value
+
+    if value in _EXACT_TRANSLATIONS:
+        return _EXACT_TRANSLATIONS[value]
+
+    translated = value
+    for italian, english in sorted(
+        _PHRASE_TRANSLATIONS.items(), key=lambda item: len(item[0]), reverse=True
+    ):
+        translated = translated.replace(italian, english)
+
+    # Applica anche le traduzioni esatte come sostituzioni di frasi lunghe,
+    # senza usare chiavi molto brevi che potrebbero alterare parole tecniche.
+    for italian, english in sorted(
+        _EXACT_TRANSLATIONS.items(), key=lambda item: len(item[0]), reverse=True
+    ):
+        if len(italian) >= 5:
+            translated = translated.replace(italian, english)
+
+    return translated
+
+
+def _translate_dataframe(data):
+    if UI_LANGUAGE != "en":
+        return data
+
+    if isinstance(data, pd.DataFrame):
+        translated = data.copy()
+        translated.columns = [tr_text(str(col)) for col in translated.columns]
+        for col in translated.columns:
+            if translated[col].dtype == "object" or str(translated[col].dtype).startswith("string"):
+                translated[col] = translated[col].map(
+                    lambda item: tr_text(item) if isinstance(item, str) else item
+                )
+        return translated
+
+    if isinstance(data, pd.Series):
+        translated = data.copy()
+        translated.name = tr_text(str(translated.name)) if translated.name is not None else None
+        if translated.dtype == "object" or str(translated.dtype).startswith("string"):
+            translated = translated.map(
+                lambda item: tr_text(item) if isinstance(item, str) else item
+            )
+        return translated
+
+    return data
+
+
+def _translate_plotly_figure(figure):
+    if UI_LANGUAGE != "en":
+        return figure
+
+    try:
+        translated = go.Figure(figure)
+    except Exception:
+        return figure
+
+    for trace in translated.data:
+        if getattr(trace, "name", None):
+            trace.name = tr_text(trace.name)
+        if getattr(trace, "hovertemplate", None):
+            trace.hovertemplate = tr_text(trace.hovertemplate)
+        trace_text = getattr(trace, "text", None)
+        if isinstance(trace_text, str):
+            trace.text = tr_text(trace_text)
+
+    if translated.layout.title and translated.layout.title.text:
+        translated.layout.title.text = tr_text(translated.layout.title.text)
+
+    for axis_name in ("xaxis", "yaxis", "yaxis2", "yaxis3"):
+        axis = getattr(translated.layout, axis_name, None)
+        if axis and axis.title and axis.title.text:
+            axis.title.text = tr_text(axis.title.text)
+
+    if translated.layout.legend and translated.layout.legend.title and translated.layout.legend.title.text:
+        translated.layout.legend.title.text = tr_text(translated.layout.legend.title.text)
+
+    if translated.layout.annotations:
+        for annotation in translated.layout.annotations:
+            if annotation.text:
+                annotation.text = tr_text(annotation.text)
+
+    return translated
+
+
+def _is_streamlit_container(value):
+    module_name = getattr(value.__class__, "__module__", "")
+    return module_name.startswith("streamlit") and (
+        hasattr(value, "markdown") or hasattr(value, "metric")
+    )
+
+
+def _wrap_streamlit_result(value):
+    if isinstance(value, list):
+        return [_wrap_streamlit_result(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_wrap_streamlit_result(item) for item in value)
+    if _is_streamlit_container(value):
+        return _TranslatedStreamlit(value)
+    return value
+
+
+class _TranslatedStreamlit:
+    """Proxy che traduce solo la presentazione, senza cambiare la logica interna."""
+
+    def __init__(self, target):
+        self._target = target
+
+    def __enter__(self):
+        self._target.__enter__()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return self._target.__exit__(exc_type, exc_value, traceback)
+
+    def __getattr__(self, name):
+        attribute = getattr(self._target, name)
+
+        if not callable(attribute):
+            return _TranslatedStreamlit(attribute) if _is_streamlit_container(attribute) else attribute
+
+        def translated_call(*args, **kwargs):
+            args = list(args)
+
+            if UI_LANGUAGE == "en":
+                text_methods = {
+                    "title", "header", "subheader", "markdown", "caption",
+                    "info", "warning", "error", "success", "write", "text"
+                }
+                choice_methods = {"selectbox", "radio", "multiselect"}
+                label_methods = {
+                    "date_input", "toggle", "checkbox", "button", "download_button",
+                    "text_input", "number_input", "slider"
+                }
+
+                if name in text_methods:
+                    if args:
+                        args[0] = tr_text(args[0])
+                    for key in ("body", "text"):
+                        if key in kwargs:
+                            kwargs[key] = tr_text(kwargs[key])
+
+                elif name == "metric":
+                    for index in range(min(3, len(args))):
+                        args[index] = tr_text(args[index])
+                    for key in ("label", "value", "delta", "help"):
+                        if key in kwargs:
+                            kwargs[key] = tr_text(kwargs[key])
+
+                elif name in choice_methods:
+                    if args:
+                        args[0] = tr_text(args[0])
+                    if "label" in kwargs:
+                        kwargs["label"] = tr_text(kwargs["label"])
+                    if "help" in kwargs:
+                        kwargs["help"] = tr_text(kwargs["help"])
+
+                    original_format = kwargs.get("format_func")
+                    if original_format is None:
+                        kwargs["format_func"] = lambda option: tr_text(str(option))
+                    else:
+                        kwargs["format_func"] = (
+                            lambda option, formatter=original_format: tr_text(formatter(option))
+                        )
+
+                elif name == "tabs":
+                    if args and isinstance(args[0], (list, tuple)):
+                        args[0] = [tr_text(label) for label in args[0]]
+                    elif "tabs" in kwargs:
+                        kwargs["tabs"] = [tr_text(label) for label in kwargs["tabs"]]
+
+                elif name in label_methods:
+                    if args:
+                        args[0] = tr_text(args[0])
+                    for key in ("label", "help", "placeholder"):
+                        if key in kwargs:
+                            kwargs[key] = tr_text(kwargs[key])
+
+                elif name == "plotly_chart":
+                    if args:
+                        args[0] = _translate_plotly_figure(args[0])
+                    elif "figure_or_data" in kwargs:
+                        kwargs["figure_or_data"] = _translate_plotly_figure(
+                            kwargs["figure_or_data"]
+                        )
+
+                elif name == "dataframe":
+                    if args:
+                        args[0] = _translate_dataframe(args[0])
+                    elif "data" in kwargs:
+                        kwargs["data"] = _translate_dataframe(kwargs["data"])
+
+                elif name == "progress" and "text" in kwargs:
+                    kwargs["text"] = tr_text(kwargs["text"])
+
+            result = attribute(*args, **kwargs)
+            return _wrap_streamlit_result(result)
+
+        return translated_call
+
+
 DB_NAME = "kaktus_analytics.db"
 
 # =========================================================
@@ -1167,7 +1383,16 @@ def render_atm(impianto_scelto):
 # MAIN DASHBOARD ENTRY POINT
 # =========================================================
 if __name__ == '__main__':
-    st.set_page_config(page_title="Water Partners Fleet Management", layout="wide")
+    _RAW_ST.set_page_config(page_title="Water Partners Fleet Management", layout="wide")
+
+    english_enabled = _RAW_ST.sidebar.toggle(
+        "🇬🇧 English",
+        value=False,
+        key="dashboard_language_english",
+        help="Activate the English interface / Attiva l'interfaccia inglese"
+    )
+    UI_LANGUAGE = "en" if english_enabled else "it"
+    st = _TranslatedStreamlit(_RAW_ST)
 
     st.sidebar.image("https://img.icons8.com/color/96/000000/globe.png", width=60)
     st.sidebar.title("Gestione Flotta")
