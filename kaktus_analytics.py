@@ -636,14 +636,9 @@ def render_produzione_atm(impianto_scelto):
         st.info(f"Nessun dato di produzione o ATM trovato per {nome_db}.")
         return
 
-    # Elenco dei mesi disponibili nelle due sorgenti.
-    mesi = set()
-    if not df_pdf.empty:
-        mesi.update(df_pdf["data_rif"].dt.to_period("M").astype(str).tolist())
-    if not df_atm.empty:
-        mesi.update(df_atm["data_rif"].dt.to_period("M").astype(str).tolist())
-    mesi = sorted(mesi, reverse=True)
-
+    # ---------------------------------------------------------
+    # Funzioni locali
+    # ---------------------------------------------------------
     nomi_mesi = {
         1: "Gennaio", 2: "Febbraio", 3: "Marzo", 4: "Aprile",
         5: "Maggio", 6: "Giugno", 7: "Luglio", 8: "Agosto",
@@ -651,8 +646,98 @@ def render_produzione_atm(impianto_scelto):
     }
 
     def etichetta_mese(valore):
-        periodo = pd.Period(valore, freq="M")
-        return f"{nomi_mesi[periodo.month]} {periodo.year}"
+        periodo_locale = pd.Period(valore, freq="M")
+        return f"{nomi_mesi[periodo_locale.month]} {periodo_locale.year}"
+
+    def formatta_intero(valore, unita):
+        if valore is None or pd.isna(valore) or not np.isfinite(float(valore)):
+            return "N/D"
+        return f"{float(valore):,.0f} {unita}"
+
+    def aggrega_giornaliero(df_pdf_filtrato, df_atm_filtrato):
+        if not df_pdf_filtrato.empty:
+            aggregazioni_pdf = {}
+            if "permeato" in df_pdf_filtrato.columns:
+                aggregazioni_pdf["permeato"] = "sum"
+            if "concentrato" in df_pdf_filtrato.columns:
+                aggregazioni_pdf["concentrato"] = "sum"
+            if "insolation" in df_pdf_filtrato.columns:
+                aggregazioni_pdf["insolation"] = "mean"
+
+            prod_giorno_locale = (
+                df_pdf_filtrato.groupby("data_rif", as_index=False).agg(aggregazioni_pdf)
+                if aggregazioni_pdf
+                else pd.DataFrame(columns=["data_rif"])
+            )
+        else:
+            prod_giorno_locale = pd.DataFrame(
+                columns=["data_rif", "permeato", "concentrato"]
+            )
+
+        if not df_atm_filtrato.empty and "litri_erogati" in df_atm_filtrato.columns:
+            atm_giorno_locale = (
+                df_atm_filtrato.groupby("data_rif", as_index=False)["litri_erogati"]
+                .sum()
+                .rename(columns={"litri_erogati": "atm_litri"})
+            )
+        else:
+            atm_giorno_locale = pd.DataFrame(columns=["data_rif", "atm_litri"])
+
+        return prod_giorno_locale, atm_giorno_locale
+
+    def crea_calendario_giornaliero(data_inizio, data_fine, prod_giorno, atm_giorno):
+        calendario_locale = pd.DataFrame({
+            "data_rif": pd.date_range(data_inizio, data_fine, freq="D")
+        })
+
+        giornaliero_locale = calendario_locale.merge(
+            prod_giorno, on="data_rif", how="left"
+        )
+        giornaliero_locale = giornaliero_locale.merge(
+            atm_giorno, on="data_rif", how="left"
+        )
+
+        for col in ["permeato", "concentrato", "atm_litri"]:
+            if col not in giornaliero_locale.columns:
+                giornaliero_locale[col] = np.nan
+
+        giornaliero_locale["atm_m3"] = giornaliero_locale["atm_litri"] / 1000.0
+        return giornaliero_locale
+
+    def totale_colonna(df, colonna):
+        if colonna not in df.columns or not df[colonna].notna().any():
+            return np.nan
+        return df[colonna].sum(min_count=1)
+
+    # ---------------------------------------------------------
+    # Intervallo complessivo disponibile
+    # ---------------------------------------------------------
+    date_disponibili = []
+    if not df_pdf.empty:
+        date_disponibili.extend(df_pdf["data_rif"].dropna().tolist())
+    if not df_atm.empty:
+        date_disponibili.extend(df_atm["data_rif"].dropna().tolist())
+
+    data_min = pd.Timestamp(min(date_disponibili)).normalize()
+    data_max = pd.Timestamp(max(date_disponibili)).normalize()
+
+    # ---------------------------------------------------------
+    # Selezione mese e serie da mostrare
+    # ---------------------------------------------------------
+    mesi = set()
+    if not df_pdf.empty:
+        mesi.update(df_pdf["data_rif"].dt.to_period("M").astype(str).tolist())
+    if not df_atm.empty:
+        mesi.update(df_atm["data_rif"].dt.to_period("M").astype(str).tolist())
+    mesi = sorted(mesi, reverse=True)
+
+    serie_disponibili = []
+    if not df_pdf.empty and "permeato" in df_pdf.columns:
+        serie_disponibili.append("Produzione")
+    if not df_atm.empty and "litri_erogati" in df_atm.columns:
+        serie_disponibili.append("Vendite ATM")
+    if not df_pdf.empty and "concentrato" in df_pdf.columns:
+        serie_disponibili.append("Concentrato")
 
     col_mese, col_serie = st.columns([1, 2])
     with col_mese:
@@ -662,141 +747,226 @@ def render_produzione_atm(impianto_scelto):
             format_func=etichetta_mese
         )
 
-    serie_disponibili = []
-    if not df_pdf.empty and "permeato" in df_pdf.columns:
-        serie_disponibili.append("Produzione permeato")
-    if not df_atm.empty and "litri_erogati" in df_atm.columns:
-        serie_disponibili.append("Vendite ATM")
-
     with col_serie:
         serie_scelte = st.multiselect(
-            "Dati da visualizzare:",
+            "Dati da visualizzare nel grafico:",
             options=serie_disponibili,
             default=serie_disponibili,
-            help="Puoi visualizzare soltanto la produzione, soltanto le vendite ATM oppure entrambe."
+            help=(
+                "Puoi mostrare Produzione, Vendite ATM e Concentrato "
+                "singolarmente oppure in qualsiasi combinazione."
+            )
         )
 
-    mostra_concentrato = False
-    if "Produzione permeato" in serie_scelte and not df_pdf.empty and "concentrato" in df_pdf.columns:
-        mostra_concentrato = st.checkbox(
-            "Mostra anche il concentrato nel grafico",
-            value=False
-        )
-
+    # ---------------------------------------------------------
+    # Riepilogo del mese selezionato
+    # ---------------------------------------------------------
     periodo = pd.Period(mese_scelto, freq="M")
     inizio_mese = periodo.start_time.normalize()
     fine_mese = periodo.end_time.normalize()
     oggi = pd.Timestamp.today().normalize()
-    fine_periodo_media = min(fine_mese, oggi) if periodo == oggi.to_period("M") else fine_mese
+
+    # Per il mese corrente non vengono conteggiati giorni futuri.
+    fine_periodo_media = (
+        min(fine_mese, oggi)
+        if periodo == oggi.to_period("M")
+        else fine_mese
+    )
     giorni_periodo = max(1, (fine_periodo_media - inizio_mese).days + 1)
 
-    # Aggregazione giornaliera: eventuali più PDF o più ATM nello stesso giorno vengono sommati.
-    if not df_pdf.empty:
-        pdf_mese = df_pdf[df_pdf["data_rif"].dt.to_period("M") == periodo].copy()
-        aggregazioni_pdf = {}
-        if "permeato" in pdf_mese.columns:
-            aggregazioni_pdf["permeato"] = "sum"
-        if "concentrato" in pdf_mese.columns:
-            aggregazioni_pdf["concentrato"] = "sum"
-        if "insolation" in pdf_mese.columns:
-            aggregazioni_pdf["insolation"] = "mean"
-
-        prod_giorno = (
-            pdf_mese.groupby("data_rif", as_index=False)
-            .agg(aggregazioni_pdf)
-            if aggregazioni_pdf else pd.DataFrame(columns=["data_rif"])
-        )
-    else:
-        pdf_mese = pd.DataFrame()
-        prod_giorno = pd.DataFrame(columns=["data_rif", "permeato", "concentrato"])
-
-    if not df_atm.empty:
-        atm_mese = df_atm[df_atm["data_rif"].dt.to_period("M") == periodo].copy()
-        atm_giorno = (
-            atm_mese.groupby("data_rif", as_index=False)["litri_erogati"]
-            .sum()
-            .rename(columns={"litri_erogati": "atm_litri"})
-        )
-    else:
-        atm_mese = pd.DataFrame()
-        atm_giorno = pd.DataFrame(columns=["data_rif", "atm_litri"])
-
-    calendario = pd.DataFrame({
-        "data_rif": pd.date_range(inizio_mese, fine_periodo_media, freq="D")
-    })
-    giornaliero = calendario.merge(prod_giorno, on="data_rif", how="left")
-    giornaliero = giornaliero.merge(atm_giorno, on="data_rif", how="left")
-    if "atm_litri" not in giornaliero.columns:
-        giornaliero["atm_litri"] = np.nan
-    giornaliero["atm_m3"] = giornaliero["atm_litri"] / 1000.0
-
-    ha_produzione = "permeato" in giornaliero.columns and giornaliero["permeato"].notna().any()
-    ha_atm = giornaliero["atm_litri"].notna().any()
-
-    totale_prodotto = giornaliero["permeato"].sum(min_count=1) if ha_produzione else np.nan
-    totale_atm_litri = giornaliero["atm_litri"].sum(min_count=1) if ha_atm else np.nan
-    totale_atm_m3 = totale_atm_litri / 1000.0 if pd.notna(totale_atm_litri) else np.nan
-
-    media_prod = totale_prodotto / giorni_periodo if pd.notna(totale_prodotto) else np.nan
-    media_atm_m3 = totale_atm_m3 / giorni_periodo if pd.notna(totale_atm_m3) else np.nan
-    media_atm_litri = totale_atm_litri / giorni_periodo if pd.notna(totale_atm_litri) else np.nan
-
-    st.subheader(f"Riepilogo — {etichetta_mese(mese_scelto)}")
-    c1, c2, c3, c4 = st.columns(4)
-
-    c1.metric(
-        "Totale prodotto",
-        f"{totale_prodotto:,.2f} m³" if pd.notna(totale_prodotto) else "N/D"
+    pdf_mese = (
+        df_pdf[df_pdf["data_rif"].dt.to_period("M") == periodo].copy()
+        if not df_pdf.empty
+        else pd.DataFrame()
     )
-    c2.metric(
-        "Totale venduto ATM",
-        f"{totale_atm_m3:,.2f} m³" if pd.notna(totale_atm_m3) else "N/D"
+    atm_mese = (
+        df_atm[df_atm["data_rif"].dt.to_period("M") == periodo].copy()
+        if not df_atm.empty
+        else pd.DataFrame()
     )
-    if pd.notna(totale_atm_litri):
-        c2.caption(f"{totale_atm_litri:,.0f} litri")
 
-    c3.metric(
+    prod_giorno, atm_giorno = aggrega_giornaliero(pdf_mese, atm_mese)
+    giornaliero = crea_calendario_giornaliero(
+        inizio_mese, fine_periodo_media, prod_giorno, atm_giorno
+    )
+
+    totale_prodotto = totale_colonna(giornaliero, "permeato")
+    totale_concentrato = totale_colonna(giornaliero, "concentrato")
+    totale_atm_litri = totale_colonna(giornaliero, "atm_litri")
+    totale_atm_m3 = (
+        totale_atm_litri / 1000.0
+        if pd.notna(totale_atm_litri)
+        else np.nan
+    )
+
+    media_prod = (
+        totale_prodotto / giorni_periodo
+        if pd.notna(totale_prodotto)
+        else np.nan
+    )
+    media_concentrato = (
+        totale_concentrato / giorni_periodo
+        if pd.notna(totale_concentrato)
+        else np.nan
+    )
+    media_atm_m3 = (
+        totale_atm_m3 / giorni_periodo
+        if pd.notna(totale_atm_m3)
+        else np.nan
+    )
+
+    st.subheader(f"Riepilogo mensile — {etichetta_mese(mese_scelto)}")
+
+    t1, t2, t3 = st.columns(3)
+    t1.metric("Totale prodotto", formatta_intero(totale_prodotto, "m³"))
+    t2.metric("Totale venduto ATM", formatta_intero(totale_atm_m3, "m³"))
+    t3.metric("Totale concentrato", formatta_intero(totale_concentrato, "m³"))
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric(
         "Media giornaliera prodotta",
-        f"{media_prod:,.2f} m³/giorno" if pd.notna(media_prod) else "N/D"
+        formatta_intero(media_prod, "m³/giorno")
     )
-    c4.metric(
+    m2.metric(
         "Media giornaliera venduta",
-        f"{media_atm_m3:,.2f} m³/giorno" if pd.notna(media_atm_m3) else "N/D"
+        formatta_intero(media_atm_m3, "m³/giorno")
     )
-    if pd.notna(media_atm_litri):
-        c4.caption(f"{media_atm_litri:,.0f} litri/giorno")
+    m3.metric(
+        "Media giornaliera concentrato",
+        formatta_intero(media_concentrato, "m³/giorno")
+    )
 
     st.caption(
-        f"Le medie sono calcolate sui {giorni_periodo} giorni "
-        f"{'trascorsi del mese' if periodo == oggi.to_period('M') else 'del mese'}."
+        f"Le medie mensili sono calcolate su {giorni_periodo} giorni "
+        f"{'trascorsi del mese' if periodo == oggi.to_period('M') else 'di calendario'}."
     )
 
+    # ---------------------------------------------------------
+    # Medie di un intervallo personalizzato
+    # ---------------------------------------------------------
+    st.markdown("---")
+    st.subheader("Medie giornaliere per periodo personalizzato")
+
+    default_inizio = max(data_min, data_max - pd.Timedelta(days=29))
+
+    intervallo = st.date_input(
+        "Seleziona il periodo da analizzare:",
+        value=[default_inizio.date(), data_max.date()],
+        min_value=data_min.date(),
+        max_value=data_max.date(),
+        key="periodo_personalizzato_produzione_atm"
+    )
+
+    if isinstance(intervallo, (list, tuple)) and len(intervallo) == 2:
+        data_da = pd.Timestamp(intervallo[0]).normalize()
+        data_a = pd.Timestamp(intervallo[1]).normalize()
+
+        if data_da > data_a:
+            st.warning("La data iniziale deve precedere la data finale.")
+        else:
+            giorni_custom = max(1, (data_a - data_da).days + 1)
+
+            pdf_custom = (
+                df_pdf[
+                    (df_pdf["data_rif"] >= data_da)
+                    & (df_pdf["data_rif"] <= data_a)
+                ].copy()
+                if not df_pdf.empty
+                else pd.DataFrame()
+            )
+            atm_custom = (
+                df_atm[
+                    (df_atm["data_rif"] >= data_da)
+                    & (df_atm["data_rif"] <= data_a)
+                ].copy()
+                if not df_atm.empty
+                else pd.DataFrame()
+            )
+
+            prod_custom, atm_custom_giorno = aggrega_giornaliero(
+                pdf_custom, atm_custom
+            )
+            giornaliero_custom = crea_calendario_giornaliero(
+                data_da, data_a, prod_custom, atm_custom_giorno
+            )
+
+            totale_prod_custom = totale_colonna(
+                giornaliero_custom, "permeato"
+            )
+            totale_conc_custom = totale_colonna(
+                giornaliero_custom, "concentrato"
+            )
+            totale_atm_custom_l = totale_colonna(
+                giornaliero_custom, "atm_litri"
+            )
+            totale_atm_custom_m3 = (
+                totale_atm_custom_l / 1000.0
+                if pd.notna(totale_atm_custom_l)
+                else np.nan
+            )
+
+            media_prod_custom = (
+                totale_prod_custom / giorni_custom
+                if pd.notna(totale_prod_custom)
+                else np.nan
+            )
+            media_atm_custom = (
+                totale_atm_custom_m3 / giorni_custom
+                if pd.notna(totale_atm_custom_m3)
+                else np.nan
+            )
+            media_conc_custom = (
+                totale_conc_custom / giorni_custom
+                if pd.notna(totale_conc_custom)
+                else np.nan
+            )
+
+            p1, p2, p3 = st.columns(3)
+            p1.metric(
+                "Media produzione nel periodo",
+                formatta_intero(media_prod_custom, "m³/giorno")
+            )
+            p2.metric(
+                "Media vendite ATM nel periodo",
+                formatta_intero(media_atm_custom, "m³/giorno")
+            )
+            p3.metric(
+                "Media concentrato nel periodo",
+                formatta_intero(media_conc_custom, "m³/giorno")
+            )
+
+            st.caption(
+                f"Periodo dal {data_da.strftime('%d/%m/%Y')} al "
+                f"{data_a.strftime('%d/%m/%Y')}: {giorni_custom} giorni di calendario."
+            )
+    else:
+        st.info("Seleziona una data iniziale e una data finale.")
+
+    # ---------------------------------------------------------
+    # Grafico mensile
+    # ---------------------------------------------------------
     st.markdown("---")
 
     if not serie_scelte:
-        st.info("Seleziona almeno una serie da visualizzare.")
+        st.info("Seleziona almeno una serie da visualizzare nel grafico.")
     else:
         fig = go.Figure()
 
-        if "Produzione permeato" in serie_scelte and "permeato" in giornaliero.columns:
+        if "Produzione" in serie_scelte:
             fig.add_trace(go.Bar(
                 x=giornaliero["data_rif"],
                 y=giornaliero["permeato"],
-                name="Produzione permeato",
+                name="Produzione",
                 marker_color="#2E86DE",
                 offsetgroup="produzione",
-                hovertemplate="%{x|%d/%m/%Y}<br>Prodotto: %{y:.2f} m³<extra></extra>"
+                texttemplate="%{y:,.0f}",
+                textposition="outside",
+                cliponaxis=False,
+                hovertemplate=(
+                    "%{x|%d/%m/%Y}<br>"
+                    "Produzione: %{y:,.0f} m³<extra></extra>"
+                )
             ))
-
-            if mostra_concentrato and "concentrato" in giornaliero.columns:
-                fig.add_trace(go.Bar(
-                    x=giornaliero["data_rif"],
-                    y=giornaliero["concentrato"],
-                    name="Concentrato",
-                    marker_color="#85C1E9",
-                    offsetgroup="concentrato",
-                    hovertemplate="%{x|%d/%m/%Y}<br>Concentrato: %{y:.2f} m³<extra></extra>"
-                ))
 
         if "Vendite ATM" in serie_scelte:
             fig.add_trace(go.Bar(
@@ -805,16 +975,35 @@ def render_produzione_atm(impianto_scelto):
                 name="Vendite ATM",
                 marker_color="#F39C12",
                 offsetgroup="atm",
+                texttemplate="%{y:,.0f}",
+                textposition="outside",
+                cliponaxis=False,
                 customdata=giornaliero[["atm_litri"]],
                 hovertemplate=(
                     "%{x|%d/%m/%Y}<br>"
-                    "Venduto: %{y:.2f} m³<br>"
+                    "Venduto: %{y:,.0f} m³<br>"
                     "(%{customdata[0]:,.0f} L)<extra></extra>"
                 )
             ))
 
+        if "Concentrato" in serie_scelte:
+            fig.add_trace(go.Bar(
+                x=giornaliero["data_rif"],
+                y=giornaliero["concentrato"],
+                name="Concentrato",
+                marker_color="#7F8C8D",
+                offsetgroup="concentrato",
+                texttemplate="%{y:,.0f}",
+                textposition="outside",
+                cliponaxis=False,
+                hovertemplate=(
+                    "%{x|%d/%m/%Y}<br>"
+                    "Concentrato: %{y:,.0f} m³<extra></extra>"
+                )
+            ))
+
         fig.update_layout(
-            title=f"Produzione e vendite giornaliere — {etichetta_mese(mese_scelto)}",
+            title=f"Volumi giornalieri — {etichetta_mese(mese_scelto)}",
             xaxis_title="Data",
             yaxis_title="Volume giornaliero (m³)",
             barmode="group",
@@ -822,10 +1011,16 @@ def render_produzione_atm(impianto_scelto):
             bargroupgap=0.04,
             hovermode="x unified",
             legend_title_text="Dato",
-            margin=dict(l=20, r=20, t=60, b=20)
+            uniformtext_minsize=8,
+            uniformtext_mode="show",
+            margin=dict(l=20, r=20, t=85, b=20)
         )
+        fig.update_yaxes(rangemode="tozero", automargin=True)
         st.plotly_chart(fig, use_container_width=True)
 
+    # ---------------------------------------------------------
+    # Tabelle
+    # ---------------------------------------------------------
     tab_giorno, tab_pdf, tab_atm = st.tabs([
         "Riepilogo giornaliero",
         "Dettaglio produzione PDF",
@@ -835,12 +1030,14 @@ def render_produzione_atm(impianto_scelto):
     with tab_giorno:
         tabella_giorno = giornaliero.copy()
         tabella_giorno["Data"] = tabella_giorno["data_rif"].dt.strftime("%d/%m/%Y")
+
         colonne_tabella = ["Data"]
         rinomina = {}
 
         if "permeato" in tabella_giorno.columns:
             colonne_tabella.append("permeato")
             rinomina["permeato"] = "Prodotto (m³)"
+
         if "concentrato" in tabella_giorno.columns:
             colonne_tabella.append("concentrato")
             rinomina["concentrato"] = "Concentrato (m³)"
@@ -863,10 +1060,17 @@ def render_produzione_atm(impianto_scelto):
         else:
             colonne_pdf = [
                 col for col in
-                ["data_rif", "permeato", "concentrato", "insolation", "file_origine"]
+                [
+                    "data_rif", "permeato", "concentrato",
+                    "insolation", "file_origine"
+                ]
                 if col in pdf_mese.columns
             ]
-            st.dataframe(pdf_mese[colonne_pdf], use_container_width=True, hide_index=True)
+            st.dataframe(
+                pdf_mese[colonne_pdf],
+                use_container_width=True,
+                hide_index=True
+            )
 
     with tab_atm:
         if atm_mese.empty:
@@ -876,7 +1080,11 @@ def render_produzione_atm(impianto_scelto):
                 col for col in ["data_rif", "atm_id", "litri_erogati"]
                 if col in atm_mese.columns
             ]
-            st.dataframe(atm_mese[colonne_atm], use_container_width=True, hide_index=True)
+            st.dataframe(
+                atm_mese[colonne_atm],
+                use_container_width=True,
+                hide_index=True
+            )
 
 def render_atm(impianto_scelto):
     st.header("🏢 Telemetria ATM (Distribuito)")
