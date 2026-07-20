@@ -1672,6 +1672,20 @@ def _report_chart_motors(df_nas, config_attuale, metric):
     return _report_fig_to_png(fig)
 
 
+
+def verifica_dipendenze_report():
+    """Restituisce l'elenco delle dipendenze mancanti per i report PDF."""
+    mancanti = []
+    try:
+        import reportlab  # noqa: F401
+    except ModuleNotFoundError:
+        mancanti.append("reportlab")
+    try:
+        import matplotlib  # noqa: F401
+    except ModuleNotFoundError:
+        mancanti.append("matplotlib")
+    return mancanti
+
 def genera_report_pdf(impianto_scelto, config_attuale, start_date, end_date, df_ro_raw, df_uf, df_nas, selected_sections, selected_series, include_notes=True):
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER, TA_LEFT
@@ -2008,6 +2022,21 @@ def genera_report_pdf(impianto_scelto, config_attuale, start_date, end_date, df_
 def render_report(impianto_scelto, config_attuale, df_ro_raw, df_uf, df_nas):
     st.header("📄 Generazione Report")
     st.caption("Il report usa la lingua attualmente selezionata nella dashboard.")
+
+    dipendenze_mancanti = verifica_dipendenze_report()
+    if dipendenze_mancanti:
+        elenco = ", ".join(dipendenze_mancanti)
+        st.error(
+            _r(
+                f"Impossibile generare il PDF: mancano i pacchetti {elenco}. "
+                "Aggiungi il file requirements.txt alla cartella principale del progetto "
+                "e riavvia o ridistribuisci l'app.",
+                f"PDF generation is unavailable because these packages are missing: {elenco}. "
+                "Add requirements.txt to the project root and restart or redeploy the app."
+            )
+        )
+        st.code("reportlab>=4.0,<5\nmatplotlib>=3.8,<4", language="text")
+        return
 
     # Recupera le date disponibili da tutte le sorgenti per proporre un periodo sensato.
     all_dates = []
