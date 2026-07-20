@@ -2,6 +2,10 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import datetime
+import io
+import os
+import re
+from pathlib import Path
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
@@ -14,6 +18,29 @@ _RAW_ST = st
 UI_LANGUAGE = "it"
 
 _EXACT_TRANSLATIONS = {'N/D': 'N/A', 'Gennaio': 'January', 'Febbraio': 'February', 'Marzo': 'March', 'Aprile': 'April', 'Maggio': 'May', 'Giugno': 'June', 'Luglio': 'July', 'Agosto': 'August', 'Settembre': 'September', 'Ottobre': 'October', 'Novembre': 'November', 'Dicembre': 'December', '🌵 GW012 Kaktus (Capo Verde)': '🌵 GW012 Kaktus (Cape Verde)', '🌴 Pingwe (Zanzibar)': '🌴 Pingwe (Zanzibar)', 'Gestione Flotta': 'Fleet Management', '🌍 Seleziona Impianto:': '🌍 Select plant:', 'Seleziona Area Analisi:': 'Select analysis area:', '🔵 Osmosi Inversa (RO)': '🔵 Reverse Osmosis (RO)', '🟢 Ultrafiltrazione (UF)': '🟢 Ultrafiltration (UF)', '⚡ Inverter & Pompe': '⚡ Inverters & Pumps', '📈 Grafici Personalizzati': '📈 Custom Charts', '🔮 Manutenzione Predittiva': '🔮 Predictive Maintenance', '⚖️ Confronto Periodi': '⚖️ Period Comparison', '📊 Produzione & ATM': '📊 Production & ATM', '☁️ Cloud Supabase': '☁️ Supabase Cloud', '🖥️ Locale SQLite': '🖥️ Local SQLite', 'Recovery': 'Recovery', 'Reiezione (Norm)': 'Rejection (Norm.)', 'ΔP Filtri a Calza': 'Bag-filter ΔP', 'Consumo SEC': 'SEC consumption', 'ΔP Cartuccia CF01': 'CF01 cartridge ΔP', 'ΔP Membrane': 'Membrane ΔP', 'Parametri Acqua (Extra)': 'Water Parameters (Additional)', 'pH Permeato': 'Permeate pH', 'Conducibilità Alimento': 'Feed conductivity', 'Conducibilità Permeato': 'Permeate conductivity', 'Grafici di Tendenza': 'Trend Charts', 'Dati Tabellari ed Esportazione': 'Tabular Data and Export', '📥 Esporta Storico in formato CSV': '📥 Export history as CSV', '📥 Esporta CSV': '📥 Export CSV', 'Nessun dato UF.': 'No UF data.', 'Flusso UF': 'UF flow', 'TMP UF': 'UF TMP', 'ΔP Filtro': 'Filter ΔP', 'Trend Pressioni UF': 'UF pressure trends', 'Nessun dato inverter.': 'No inverter data.', 'Pompa': 'Pump', 'Nome Pompa': 'Pump name', 'Analisi Salute Statore': 'Stator Health Analysis', 'Seleziona pompa per trend Cosφ:': 'Select pump for Cosφ trend:', 'Seleziona Intervallo:': 'Select range:', 'Scegli parametri:': 'Select parameters:', '🔮 Analisi Predittiva e Stato di Salute': '🔮 Predictive Analysis and Health Status', '📊 Cruscotto Salute': '📊 Health Dashboard', '💧 Membrane (Perm)': '💧 Membranes (Permeability)', '🧱 Fouling Spaziatori (ΔP)': '🧱 Spacer Fouling (ΔP)', '🟢 Membrane UF': '🟢 UF Membranes', '🧦 Filtri a Calza': '🧦 Bag Filters', '🗑️ Cartucce CF01': '🗑️ CF01 Cartridges', '⛨ Diagnostica Motori': '⛨ Motor Diagnostics', 'Membrane RO (ASTM)': 'RO membranes (ASTM)', 'Spaziatori RO (ΔP)': 'RO spacers (ΔP)', 'Filtro Cartucce CF01': 'CF01 cartridge filter', 'Membrane UF': 'UF membranes', 'Filtri a Calza': 'Bag filters', 'Stabile - Nessun intervento': 'Stable — No intervention required', 'Dati insufficienti': 'Insufficient data', 'Indice Pulito a 25°C': 'Clean index at 25°C', 'Situazione Stabile': 'Stable condition', 'ΔP Attuale': 'Current ΔP', 'Situazione Idraulica Stabile': 'Stable hydraulic condition', 'Stato Elettrico': 'Electrical status', 'Stato Meccanico': 'Mechanical status', 'Deriva Cosφ (Elettrica)': 'Cosφ drift (Electrical)', 'Degrado A/Hz (Meccanica)': 'A/Hz degradation (Mechanical)', '🔴 Critico': '🔴 Critical', '🟡 Attenzione': '🟡 Warning', '🟢 Ottimale': '🟢 Optimal', 'Seleziona pompa per dettaglio trend storico:': 'Select pump for detailed historical trend:', 'Fattore di potenza': 'Power factor', '⚖️ Analisi Comparativa (A/B Test)': '⚖️ Comparative Analysis (A/B Test)', '📊 Seleziona il Parametro da analizzare:': '📊 Select the parameter to analyse:', 'Date Periodo A:': 'Period A dates:', 'Date Periodo B:': 'Period B dates:', 'Media Periodo A': 'Period A average', 'Media Periodo B': 'Period B average', 'Variazione Percentuale': 'Percentage change', 'Permeabilità Normalizzata (Fouling RO)': 'Normalised permeability (RO fouling)', 'Salto di Pressione (ΔP RO)': 'Pressure drop (RO ΔP)', 'Reiezione Salina (%)': 'Salt rejection (%)', 'Consumo Specifico (SEC)': 'Specific energy consumption (SEC)', 'TMP Ultrafiltrazione': 'Ultrafiltration TMP', '📊 Produzione e vendite ATM': '📊 Production and ATM Sales', 'Mese da analizzare:': 'Month to analyse:', 'Dati da visualizzare nel grafico:': 'Data to display in the chart:', 'Produzione': 'Production', 'Vendite ATM': 'ATM sales', 'Concentrato': 'Concentrate', 'Totale prodotto': 'Total production', 'Totale venduto ATM': 'Total ATM sales', 'Totale concentrato': 'Total concentrate', 'Media giornaliera prodotta': 'Average daily production', 'Media giornaliera venduta': 'Average daily ATM sales', 'Media giornaliera concentrato': 'Average daily concentrate', 'Medie giornaliere per periodo personalizzato': 'Daily averages for a custom period', 'Seleziona il periodo da analizzare:': 'Select the period to analyse:', 'Media produzione nel periodo': 'Average production in the period', 'Media vendite ATM nel periodo': 'Average ATM sales in the period', 'Media concentrato nel periodo': 'Average concentrate in the period', '#### Grafico del periodo selezionato': '#### Selected-period chart', '#### Grafico del mese selezionato': '#### Selected-month chart', 'Riepilogo giornaliero': 'Daily summary', 'Dettaglio produzione PDF': 'PDF production details', 'Dettaglio ATM': 'ATM details', 'Data': 'Date', 'Prodotto (m³)': 'Production (m³)', 'Concentrato (m³)': 'Concentrate (m³)', 'Venduto ATM (L)': 'ATM sales (L)', 'Venduto ATM (m³)': 'ATM sales (m³)', 'data_rif': 'Reference date', 'permeato': 'Permeate', 'concentrato': 'Concentrate', 'insolation': 'Solar irradiation', 'file_origine': 'Source file', 'litri_erogati': 'Dispensed litres', 'atm_id': 'ATM ID', 'atm_litri': 'ATM litres', 'atm_m3': 'ATM m³', '🏢 Telemetria ATM (Distribuito)': '🏢 ATM Telemetry (Distributed)', 'Totale Litri Erogati': 'Total litres dispensed', 'Media Giornaliera': 'Daily average', '📄 Analisi Produzione da PDF': '📄 PDF Production Analysis', 'Totale Permeato': 'Total permeate', 'Media Insolazione': 'Average solar irradiation', 'Flusso Permeato': 'Permeate flow', 'Flusso Concentrato': 'Concentrate flow', 'Flusso Potabile (Uscita)': 'Potable-water flow (Outlet)', 'Pompa HP 1 (RO)': 'HP pump 1 (RO)', 'Pompa HP 2 (RO)': 'HP pump 2 (RO)', 'Pompa HP 3 (RO)': 'HP pump 3 (RO)', 'Pompa HP 4 (RO)': 'HP pump 4 (RO)', 'Pompa Pozzo Kaktus': 'Kaktus well pump', 'Pompa Alimento (RO)': 'RO feed pump', 'Pompa Travaso TK10-3': 'TK10-3 transfer pump', 'Pompa Pozzo Toninho': 'Toninho well pump', 'Pompa Travaso TK11-3': 'TK11-3 transfer pump', 'Pompa Pozzo 1 (P01)': 'Well pump 1 (P01)', 'Pompa Pozzo 2 (P05)': 'Well pump 2 (P05)', 'Pompa ATM Standard': 'Standard ATM pump', 'Pompa ATM Premium': 'Premium ATM pump', 'Pompa Ausiliaria (NAS5)': 'Auxiliary pump (NAS5)', 'Pompa Sconosciuta': 'Unknown pump', 'P. Ingresso (bar)': 'Inlet pressure (bar)', 'P. Uscita (bar)': 'Outlet pressure (bar)', 'Permeato (m³/h)': 'Permeate (m³/h)', 'Portata (m³/h)': 'Flow (m³/h)', 'Pressione (bar)': 'Pressure (bar)', 'Permeabilità (m³/h/bar)': 'Permeability (m³/h/bar)', 'Permeabilità normalizzata': 'Normalised permeability', 'Salto di pressione (bar)': 'Pressure drop (bar)', 'ΔP (bar)': 'ΔP (bar)', 'Volume giornaliero (m³)': 'Daily volume (m³)', 'Dato': 'Data series', 'Baseline': 'Baseline', 'Limite': 'Limit', 'Previsione': 'Forecast', 'Regressione': 'Regression', 'Previsione fouling': 'Fouling forecast', 'Previsione intasamento': 'Clogging forecast', 'Trend reale (media 24h)': 'Actual trend (24 h average)', 'ΔP reale (media 24h)': 'Actual ΔP (24 h average)', 'ΔP reale': 'Actual ΔP', 'TMP reale': 'Actual TMP', 'Limite TMP': 'TMP limit', 'Limite sostituzione': 'Replacement limit', 'Limite CIP (85%)': 'CIP limit (85%)', 'Limite rischio CIP (+15%)': 'CIP risk limit (+15%)', 'Baseline installazione': 'Installation baseline', 'Allarme (-10%)': 'Alarm (-10%)', 'Trend (Media 24h)': 'Trend (24 h average)', 'Dato Orario': 'Hourly data', 'm³/giorno': 'm³/day', 'L/giorno': 'L/day', "💡 **Guida alla Lettura - Osmosi Inversa (RO):**\n    - **Recovery (Recupero):** La percentuale di acqua di alimento trasformata in permeato (acqua dolce).\n    - **Reiezione Salina (Normalizzata):** Indica l'efficienza chimica della membrana nel bloccare i sali, depurata matematicamente dalle fluttuazioni di temperatura. Per calcolarla si usa il fattore $TCF = \\exp\\left[2640 \\cdot \\left(\\frac{1}{298.15} - \\frac{1}{T_{acqua} + 273.15}\\right)\\right]$. Valori ottimali: > 98%.\n    - **Consumo SEC:** Energia Specifica Consumata (kWh/m³). Rappresenta quanta energia è necessaria per produrre un singolo metro cubo di acqua dolce.\n    - **ΔP (Salto di Pressione):** Misura la perdita di carico idraulica tra l'ingresso e l'uscita dei vessel. Un aumento continuo segnala un'ostruzione fisica (fouling, bio-fouling o scaling inorganico).": "💡 **Reading Guide — Reverse Osmosis (RO):**\n    - **Recovery:** The percentage of feedwater converted into permeate (fresh water).\n    - **Normalised salt rejection:** The membrane's efficiency in retaining salts, mathematically corrected for temperature fluctuations. It uses the factor $TCF = \\exp\\left[2640 \\cdot \\left(\\frac{1}{298.15} - \\frac{1}{T_{water} + 273.15}\\right)\\right]$. Recommended values: > 98%.\n    - **SEC consumption:** Specific energy consumption (kWh/m³), indicating the energy required to produce one cubic metre of fresh water.\n    - **ΔP (pressure drop):** The hydraulic pressure loss between vessel inlet and outlet. A continuous increase indicates physical obstruction such as fouling, biofouling or inorganic scaling.", "💡 **Guida alla Lettura - Ultrafiltrazione (UF):**\n    - **TMP (Pressione Trans-Membrana):** È la pressione netta necessaria per forzare l'acqua ad attraversare i pori microscopici (fibre cave) della membrana di pre-trattamento. \n    - **Salute dell'Asset:** Un rapido e continuo aumento della TMP (verso la soglia di guardia di 1.5 bar) indica un intasamento dei pori (fouling irreversibile) o la necessità di rendere i cicli di controlavaggio (Backwash / CEB) più frequenti o aggressivi.": '💡 **Reading Guide — Ultrafiltration (UF):**\n    - **TMP (Transmembrane Pressure):** The net pressure required to force water through the microscopic pores (hollow fibres) of the pretreatment membrane.\n    - **Asset health:** A rapid and continuous rise in TMP towards the 1.5 bar warning threshold indicates pore blockage (irreversible fouling) or the need for more frequent or more intensive backwash/CEB cycles.', "💡 **Guida alla Lettura - Elettromeccanica Inverter:**\n    - **Cosφ (Fattore di Potenza):** Indica l'efficienza magnetica dello statore del motore elettrico. Un calo progressivo o brusco del Cosφ rispetto alla linea di base indica degrado dell'isolamento o possibili cortocircuiti tra le spire avvolte (situazione critica).\n    - **Sforzo Meccanico (A/Hz):** L'indice calcolato dal rapporto tra Corrente assorbita e Frequenza di rete. Un aumento di questo valore indica che la pompa sta chiedendo più Ampere a parità di giri di rotazione: è un forte campanello d'allarme per usura dei cuscinetti, attriti anomali o blocco della girante idraulica.": '💡 **Reading Guide — Inverter Electromechanics:**\n    - **Cosφ (power factor):** Indicates the magnetic efficiency of the electric motor stator. A gradual or sudden decrease from the baseline may indicate insulation degradation or possible turn-to-turn short circuits.\n    - **Mechanical load (A/Hz):** The ratio between current draw and operating frequency. An increase means the pump requires more current at the same speed, which may indicate bearing wear, abnormal friction or impeller blockage.', "💡 **Guida alla Lettura - Troubleshooting ed Esplorazione Libera:**\n    Questa sezione non impone regole predefinite o calcoli automatici. Puoi sovrapporre liberamente qualsiasi parametro (idraulico, chimico o elettrico) memorizzato nel database per identificare correlazioni anomale non ovvie (ad esempio: misurare in quale misura un picco di pressione dell'alimento influenza il consumo elettrico SEC). È lo strumento ideale per la *Root Cause Analysis* in caso di anomalie di sistema.": '💡 **Reading Guide — Troubleshooting and Free Exploration:**\n    This section applies no predefined rules or automatic calculations. You can freely overlay any hydraulic, chemical or electrical parameter stored in the database to identify non-obvious abnormal correlations, such as how a feed-pressure spike affects SEC. It is designed for *Root Cause Analysis* when system anomalies occur.', '💡 **Guida alla Lettura - Modello Predittivo:**\n    - **Health Score (%):** Un indicatore compreso tra 0 e 100 che rappresenta la "vita utile residua" dell\'asset prima di dover effettuare una manutenzione correttiva.\n    - **Come calcoliamo le date:** Il sistema utilizza un algoritmo di **Regressione Lineare** (usando l\'equazione $y = mx + q$) che elabora la tendenza dei dati storici. Quando la retta di regressione tracciata dal modello interseca i limiti ingegneristici predefiniti (ad esempio: una perdita del 15% sulla permeabilità iniziale), il sistema stima in modo proattivo i giorni rimanenti al lavaggio (CIP) o alla sostituzione.': "💡 **Reading Guide — Predictive Model:**\n    - **Health Score (%):** An indicator from 0 to 100 representing the asset's estimated remaining useful condition before corrective maintenance is required.\n    - **How dates are calculated:** The system uses a **linear regression** algorithm ($y = mx + q$) to evaluate the historical trend. When the regression line intersects a predefined engineering limit, such as a 15% loss of initial permeability, it estimates the remaining time before CIP or replacement.", '💡 **Guida alla Lettura - Analisi Comparativa (A/B Test e Box Plot):**\n    - **La "Scatola" (Box):** Rappresenta visivamente il 50% centrale delle letture di quel periodo (il range di funzionamento "normale"). Se la scatola si "allarga" molto, l\'impianto sta soffrendo di instabilità idraulica.\n    - **La Mediana (linea centrale):** È il valore medio effettivo di funzionamento. Se la mediana del Periodo B è palesemente disallineata da quella del Periodo A, significa che l\'impianto ha subito una deviazione strutturale (es. dopo aver cambiato le cartucce o eseguito un CIP).\n    - **I Puntini (Outliers):** Identificano singoli campioni anomali, fuori scala rispetto al normale ciclo produttivo (ad esempio: colpi d\'ariete, partenze repentine dell\'inverter). Più puntini vedi, più l\'infrastruttura ha subito shock termici o idraulici.': '💡 **Reading Guide — Comparative Analysis (A/B Test and Box Plot):**\n    - **The box:** Represents the central 50% of the readings in the period, corresponding to the normal operating range. A much wider box indicates greater hydraulic instability.\n    - **The median:** The central operating value. A clear shift in Period B compared with Period A indicates a structural change, such as after cartridge replacement or CIP.\n    - **Outliers:** Individual samples outside the normal operating distribution, such as water hammer or abrupt inverter starts. More outliers indicate more frequent hydraulic or thermal shocks.'}
+
+
+_EXACT_TRANSLATIONS.update({
+    "📄 Report": "📄 Reports",
+    "📄 Generazione Report": "📄 Report Generation",
+    "Periodo del report:": "Report period:",
+    "Serie del grafico produzione:": "Production chart series:",
+    "Sezioni da includere:": "Sections to include:",
+    "Produzione e vendite": "Production and sales",
+    "Performance RO": "RO performance",
+    "UF e filtri": "UF and filters",
+    "Motori e pompe": "Motors and pumps",
+    "Tabella giornaliera": "Daily table",
+    "Genera report PDF": "Generate PDF report",
+    "Generazione del report in corso...": "Generating report...",
+    "Report generato correttamente.": "Report generated successfully.",
+    "Scarica report PDF": "Download PDF report",
+    "Nessun dato disponibile per generare il report.": "No data are available to generate the report.",
+    "Seleziona una data iniziale e una data finale valide.": "Select a valid start date and end date.",
+    "Il report usa la lingua attualmente selezionata nella dashboard.": "The report uses the language currently selected in the dashboard.",
+    "Il concentrato non è incluso di default nel grafico del report.": "Concentrate is not included in the report chart by default.",
+    "Includi note automatiche e indicatori di qualità del dato": "Include automatic notes and data-quality indicators",
+})
 
 _PHRASE_TRANSLATIONS = {'Sistema di Monitoraggio - ': 'Monitoring System — ', 'Origine Dati: ': 'Data source: ', 'Nessun dato registrato per ': 'No data recorded for ', '. In attesa dei log...': '. Waiting for logs...', 'Nessun dato PDF trovato per ': 'No PDF data found for ', 'Errore caricamento dati PDF: ': 'Error loading PDF data: ', 'Nessun misuratore di portata FIT disponibile nei dati.': 'No FIT flow meter is available in the data.', '#### Portate istantanee — tutti i FIT': '#### Instantaneous flow rates — all FIT meters', 'Fouling: Indice di Permeabilità ASTM (Media Mobile)': 'Fouling: ASTM Permeability Index (Moving Average)', 'Dinamica Pressioni Idrauliche': 'Hydraulic Pressure Dynamics', 'Dati Cosφ non disponibili o insufficienti per ': 'Cosφ data are unavailable or insufficient for ', "Nessun dato numerico valido nell'intervallo selezionato.": 'No valid numerical data in the selected range.', 'Stimato in: ': 'Estimated in: ', ' giorni': ' days', 'Dati insufficienti per la previsione delle membrane RO.': 'Insufficient data for the RO membrane forecast.', 'Lavaggio chimico (CIP) tra **': 'Chemical cleaning (CIP) in **', 'Dati insufficienti per la previsione degli spaziatori RO.': 'Insufficient data for the RO spacer forecast.', 'Lavaggio (CIP) stimato tra **': 'Cleaning (CIP) estimated in **', 'In attesa di dati UF sufficienti...': 'Waiting for sufficient UF data...', 'Dati insufficienti per la previsione dei filtri a calza.': 'Insufficient data for the bag-filter forecast.', 'Dati insufficienti per la previsione delle cartucce CF01.': 'Insufficient data for the CF01 cartridge forecast.', 'In attesa di dati inverter sufficienti...': 'Waiting for sufficient inverter data...', 'Non ci sono abbastanza campioni validi per costruire il cruscotto motori.': 'There are not enough valid samples to build the motor dashboard.', 'Previsione Fouling Membrane RO': 'RO Membrane Fouling Forecast', 'Previsione Fouling Spaziatori RO': 'RO Spacer Fouling Forecast', 'Previsione TMP Ultrafiltrazione': 'Ultrafiltration TMP Forecast', 'Previsione Intasamento Filtri a Calza': 'Bag-filter Clogging Forecast', 'Previsione Intasamento Cartucce CF01': 'CF01 Cartridge Clogging Forecast', 'Sforzo Meccanico Relativo (A/Hz) - ': 'Relative Mechanical Load (A/Hz) — ', 'Salute Magnetica Statore (Cosφ) - ': 'Stator Magnetic Health (Cosφ) — ', 'Trend Cosφ - ': 'Cosφ Trend — ', 'Distribuzione e Stabilità: ': 'Distribution and Stability: ', 'Periodo A<br>(': 'Period A<br>(', 'Periodo B<br>(': 'Period B<br>(', 'Riepilogo mensile — ': 'Monthly summary — ', 'Le medie mensili sono calcolate su ': 'Monthly averages are calculated over ', ' trascorsi del mese': ' elapsed days of the month', ' di calendario': ' calendar days', 'La data iniziale deve precedere la data finale.': 'The start date must be earlier than the end date.', 'Periodo dal ': 'Period from ', ' al ': ' to ', ' giorni di calendario.': ' calendar days.', 'Seleziona una data iniziale e una data finale.': 'Select a start date and an end date.', 'Seleziona almeno una serie da visualizzare nel grafico.': 'Select at least one data series to display in the chart.', 'Volumi giornalieri — ': 'Daily volumes — ', 'Nessun dato di produzione PDF nel mese selezionato.': 'No PDF production data for the selected month.', 'Nessun dato ATM nel mese selezionato.': 'No ATM data for the selected month.', 'Errore nel caricamento dei dati Produzione/ATM: ': 'Error loading Production/ATM data: ', 'Nessun dato di produzione o ATM trovato per ': 'No production or ATM data found for ', 'Puoi mostrare Produzione, Vendite ATM e Concentrato singolarmente oppure in qualsiasi combinazione. Il concentrato non è selezionato di default.': 'You can display Production, ATM sales and Concentrate individually or in any combination. Concentrate is not selected by default.', 'Produzione: ': 'Production: ', 'Venduto: ': 'Sold: ', 'Concentrato: ': 'Concentrate: ', 'Trend Produzione - ': 'Production Trend — ', 'Distribuzione Erogazioni - ': 'Dispensing Distribution — ', 'Nessun dato ATM trovato per questo impianto.': 'No ATM data found for this plant.', 'Errore caricamento dati ATM: ': 'Error loading ATM data: ', ' (Sostit. ': ' (Replaced ', 'Media 24h': '24 h average', 'Permeabilità': 'Permeability', 'Reiezione': 'Rejection'}
 
@@ -1345,6 +1372,746 @@ def render_produzione_atm(impianto_scelto):
                 hide_index=True
             )
 
+
+# =========================================================
+# REPORT PDF PERIODICI
+# =========================================================
+def _r(it_text, en_text):
+    return en_text if UI_LANGUAGE == "en" else it_text
+
+
+def _report_format_number(value, unit=""):
+    try:
+        if value is None or pd.isna(value) or not np.isfinite(float(value)):
+            return _r("N/D", "N/A")
+        formatted = f"{float(value):,.0f}"
+        return f"{formatted} {unit}".strip()
+    except (TypeError, ValueError):
+        return _r("N/D", "N/A")
+
+
+def _report_filter_period(df, start_date, end_date, date_col="date_str"):
+    if df is None or df.empty:
+        return pd.DataFrame()
+    out = df.copy()
+    if date_col in out.columns:
+        dates = pd.to_datetime(out[date_col], errors="coerce")
+    elif "timestamp" in out.columns:
+        dates = pd.to_datetime(
+            pd.to_numeric(out["timestamp"], errors="coerce"),
+            unit="s",
+            errors="coerce",
+        )
+    else:
+        return pd.DataFrame()
+    out["_report_date"] = dates
+    mask = (
+        out["_report_date"].notna()
+        & (out["_report_date"] >= pd.Timestamp(start_date))
+        & (out["_report_date"] < pd.Timestamp(end_date) + pd.Timedelta(days=1))
+    )
+    return out.loc[mask].sort_values("_report_date").reset_index(drop=True)
+
+
+def _report_build_daily(df_pdf, df_atm, start_date, end_date):
+    calendar = pd.DataFrame({
+        "data_rif": pd.date_range(start_date, end_date, freq="D")
+    })
+
+    if df_pdf is not None and not df_pdf.empty:
+        pdf = df_pdf.copy()
+        pdf["data_rif"] = pd.to_datetime(pdf["data_rif"], errors="coerce").dt.normalize()
+        pdf = pdf[
+            (pdf["data_rif"] >= pd.Timestamp(start_date))
+            & (pdf["data_rif"] <= pd.Timestamp(end_date))
+        ]
+        aggregations = {}
+        for col in ("permeato", "concentrato"):
+            if col in pdf.columns:
+                pdf[col] = pd.to_numeric(pdf[col], errors="coerce")
+                aggregations[col] = "sum"
+        if "insolation" in pdf.columns:
+            pdf["insolation"] = pd.to_numeric(pdf["insolation"], errors="coerce")
+            aggregations["insolation"] = "mean"
+        prod_daily = (
+            pdf.groupby("data_rif", as_index=False).agg(aggregations)
+            if aggregations else pd.DataFrame(columns=["data_rif"])
+        )
+    else:
+        prod_daily = pd.DataFrame(columns=["data_rif", "permeato", "concentrato"])
+
+    if df_atm is not None and not df_atm.empty:
+        atm = df_atm.copy()
+        atm["data_rif"] = pd.to_datetime(atm["data_rif"], errors="coerce").dt.normalize()
+        atm["litri_erogati"] = pd.to_numeric(atm.get("litri_erogati"), errors="coerce")
+        atm = atm[
+            (atm["data_rif"] >= pd.Timestamp(start_date))
+            & (atm["data_rif"] <= pd.Timestamp(end_date))
+        ]
+        atm_daily = (
+            atm.groupby("data_rif", as_index=False)["litri_erogati"]
+            .sum()
+            .rename(columns={"litri_erogati": "atm_litri"})
+        )
+    else:
+        atm_daily = pd.DataFrame(columns=["data_rif", "atm_litri"])
+
+    daily = calendar.merge(prod_daily, on="data_rif", how="left")
+    daily = daily.merge(atm_daily, on="data_rif", how="left")
+    for col in ("permeato", "concentrato", "atm_litri"):
+        if col not in daily.columns:
+            daily[col] = np.nan
+    daily["atm_m3"] = daily["atm_litri"] / 1000.0
+    return daily
+
+
+def _report_daily_mean(df, col):
+    if df is None or df.empty or col not in df.columns:
+        return pd.DataFrame(columns=["date", col])
+    work = df[["_report_date", col]].copy()
+    work[col] = pd.to_numeric(work[col], errors="coerce")
+    work = work.dropna(subset=["_report_date", col])
+    if work.empty:
+        return pd.DataFrame(columns=["date", col])
+    work["date"] = work["_report_date"].dt.normalize()
+    return work.groupby("date", as_index=False)[col].mean()
+
+
+def _report_motor_stats(df_nas, config_attuale, impianto_scelto):
+    if df_nas is None or df_nas.empty:
+        return pd.DataFrame()
+    rows = []
+    install_dates = PUMP_INSTALL_DATES.get(impianto_scelto, {})
+    for nas_id, pump_name in config_attuale.get("inverters", {}).items():
+        pump = df_nas[df_nas["nas_id"] == nas_id].copy()
+        if "freq" not in pump.columns:
+            continue
+        pump = pump[pd.to_numeric(pump["freq"], errors="coerce") > 10]
+        if nas_id in install_dates:
+            install_date = pd.to_datetime(install_dates[nas_id], errors="coerce")
+            if pd.notna(install_date):
+                pump = pump[pump["_report_date"] >= install_date]
+        if len(pump) < 3 or not {"current", "freq", "cosphi"}.issubset(pump.columns):
+            continue
+        current = pd.to_numeric(pump["current"], errors="coerce")
+        freq = pd.to_numeric(pump["freq"], errors="coerce")
+        cosphi = pd.to_numeric(pump["cosphi"], errors="coerce")
+        torque_index = (current / freq).replace([np.inf, -np.inf], np.nan).dropna()
+        cosphi = cosphi.replace([np.inf, -np.inf], np.nan).dropna()
+        if len(torque_index) < 3 or len(cosphi) < 3:
+            continue
+        base_idx, last_idx = torque_index.iloc[:3].mean(), torque_index.iloc[-3:].mean()
+        base_cos, last_cos = cosphi.iloc[:3].mean(), cosphi.iloc[-3:].mean()
+        if not all(np.isfinite(v) for v in (base_idx, last_idx, base_cos, last_cos)) or base_idx <= 0 or base_cos <= 0:
+            continue
+        mech = ((last_idx - base_idx) / base_idx) * 100
+        elec = ((last_cos - base_cos) / base_cos) * 100
+        elec_status = _r("Critico", "Critical") if elec < -10 else (_r("Attenzione", "Watch") if elec < -5 else "OK")
+        mech_status = _r("Critico", "Critical") if mech > 15 else (_r("Attenzione", "Watch") if mech > 8 else "OK")
+        rows.append({
+            "ID": nas_id,
+            _r("Pompa", "Pump"): tr_text(pump_name),
+            _r("Deriva Cosφ", "Cosφ drift"): elec,
+            _r("Stato elettrico", "Electrical status"): elec_status,
+            _r("Deriva A/Hz", "A/Hz drift"): mech,
+            _r("Stato meccanico", "Mechanical status"): mech_status,
+        })
+    return pd.DataFrame(rows)
+
+
+def _report_fig_to_png(fig):
+    import matplotlib.pyplot as plt
+    stream = io.BytesIO()
+    fig.savefig(stream, format="png", dpi=155, bbox_inches="tight")
+    plt.close(fig)
+    stream.seek(0)
+    return stream
+
+
+def _report_chart_daily_volumes(daily, selected_series):
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+
+    fig, ax = plt.subplots(figsize=(7.2, 3.25))
+    dates = pd.to_datetime(daily["data_rif"])
+    series = []
+    if "Produzione" in selected_series:
+        series.append((_r("Produzione", "Production"), pd.to_numeric(daily["permeato"], errors="coerce")))
+    if "Vendite ATM" in selected_series:
+        series.append((_r("Vendite ATM", "ATM sales"), pd.to_numeric(daily["atm_m3"], errors="coerce")))
+    if "Concentrato" in selected_series:
+        series.append((_r("Concentrato", "Concentrate"), pd.to_numeric(daily["concentrato"], errors="coerce")))
+
+    count = max(1, len(series))
+    width = 0.8 / count
+    offsets = (np.arange(count) - (count - 1) / 2) * width
+    for idx, (label, values) in enumerate(series):
+        bars = ax.bar(dates + pd.to_timedelta(offsets[idx], unit="D"), values, width=width, label=label)
+        if len(daily) <= 45:
+            ax.bar_label(bars, labels=["" if pd.isna(v) else f"{v:.0f}" for v in values], padding=2, fontsize=6)
+
+    ax.set_title(_r("Produzione e vendite giornaliere", "Daily production and sales"))
+    ax.set_ylabel(_r("Volume (m³/giorno)", "Volume (m³/day)"))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
+    ax.tick_params(axis="x", rotation=45, labelsize=7)
+    ax.grid(axis="y", alpha=0.25)
+    ax.legend(fontsize=8, ncol=max(1, len(series)))
+    fig.tight_layout()
+    return _report_fig_to_png(fig)
+
+
+def _report_chart_trend(df, col, title_it, title_en, y_it, y_en, limit=None, baseline=None, forecast_days=30, direction=None):
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+
+    daily = _report_daily_mean(df, col)
+    if daily.empty:
+        return None
+
+    fig, ax = plt.subplots(figsize=(7.2, 3.05))
+    ax.plot(daily["date"], daily[col], marker="o", markersize=2.5, linewidth=1.4, label=_r("Dato giornaliero", "Daily value"))
+
+    if len(daily) >= 3 and daily["date"].nunique() >= 2:
+        x = (daily["date"] - daily["date"].iloc[0]).dt.total_seconds().to_numpy() / 86400.0
+        y = daily[col].to_numpy(dtype=float)
+        valid = np.isfinite(x) & np.isfinite(y)
+        if valid.sum() >= 3:
+            slope, intercept = np.polyfit(x[valid], y[valid], 1)
+            show = np.isfinite(slope) and np.isfinite(intercept)
+            if direction == "up":
+                show = show and slope > 0
+            elif direction == "down":
+                show = show and slope < 0
+            if show:
+                x_future = np.linspace(x[valid].min(), x[valid].max() + forecast_days, 100)
+                future_dates = daily["date"].iloc[0] + pd.to_timedelta(x_future, unit="D")
+                ax.plot(future_dates, slope * x_future + intercept, linestyle="--", linewidth=1.2, label=_r("Regressione / previsione", "Regression / forecast"))
+
+    if limit is not None and np.isfinite(float(limit)):
+        ax.axhline(float(limit), linestyle="--", linewidth=1.1, label=_r("Limite", "Limit"))
+    if baseline is not None and np.isfinite(float(baseline)):
+        ax.axhline(float(baseline), linestyle=":", linewidth=1.1, label="Baseline")
+
+    ax.set_title(_r(title_it, title_en))
+    ax.set_ylabel(_r(y_it, y_en))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
+    ax.tick_params(axis="x", rotation=45, labelsize=7)
+    ax.grid(alpha=0.25)
+    ax.legend(fontsize=7, loc="best")
+    fig.tight_layout()
+    return _report_fig_to_png(fig)
+
+
+def _report_chart_two_percent(df, col_a, col_b):
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+
+    a = _report_daily_mean(df, col_a)
+    b = _report_daily_mean(df, col_b)
+    if a.empty and b.empty:
+        return None
+    merged = pd.merge(a, b, on="date", how="outer").sort_values("date")
+    fig, ax = plt.subplots(figsize=(7.2, 3.0))
+    if col_a in merged:
+        ax.plot(merged["date"], merged[col_a], marker="o", markersize=2.5, label=_r("Recovery", "Recovery"))
+    if col_b in merged:
+        ax.plot(merged["date"], merged[col_b], marker="o", markersize=2.5, label=_r("Reiezione normalizzata", "Normalised rejection"))
+    ax.set_title(_r("Indicatori di processo RO", "RO process indicators"))
+    ax.set_ylabel("%")
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
+    ax.tick_params(axis="x", rotation=45, labelsize=7)
+    ax.grid(alpha=0.25)
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    return _report_fig_to_png(fig)
+
+
+def _report_chart_motors(df_nas, config_attuale, metric):
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+
+    if df_nas is None or df_nas.empty:
+        return None
+    work = df_nas.copy()
+    work["freq"] = pd.to_numeric(work.get("freq"), errors="coerce")
+    work = work[work["freq"] > 10]
+    if work.empty:
+        return None
+    if metric == "cosphi":
+        work["value"] = pd.to_numeric(work.get("cosphi"), errors="coerce")
+        title = _r("Andamento Cosφ dei motori", "Motor Cosφ trends")
+        ylabel = "Cosφ"
+    else:
+        current = pd.to_numeric(work.get("current"), errors="coerce")
+        work["value"] = current / work["freq"]
+        title = _r("Andamento dello sforzo meccanico A/Hz", "Mechanical load A/Hz trends")
+        ylabel = "A/Hz"
+    work = work.dropna(subset=["_report_date", "value", "nas_id"])
+    if work.empty:
+        return None
+    work["date"] = work["_report_date"].dt.normalize()
+    daily = work.groupby(["date", "nas_id"], as_index=False)["value"].mean()
+
+    fig, ax = plt.subplots(figsize=(7.2, 3.2))
+    plotted = 0
+    for nas_id, group in daily.groupby("nas_id"):
+        if nas_id not in config_attuale.get("inverters", {}):
+            continue
+        ax.plot(group["date"], group["value"], marker="o", markersize=2, linewidth=1, label=tr_text(config_attuale["inverters"][nas_id]))
+        plotted += 1
+    if plotted == 0:
+        plt.close(fig)
+        return None
+    ax.set_title(title)
+    ax.set_ylabel(ylabel)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
+    ax.tick_params(axis="x", rotation=45, labelsize=7)
+    ax.grid(alpha=0.25)
+    ax.legend(fontsize=6, ncol=2, loc="best")
+    fig.tight_layout()
+    return _report_fig_to_png(fig)
+
+
+def genera_report_pdf(impianto_scelto, config_attuale, start_date, end_date, df_ro_raw, df_uf, df_nas, selected_sections, selected_series, include_notes=True):
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+        Image, PageBreak, KeepTogether
+    )
+    from xml.sax.saxutils import escape
+
+    # Font Unicode per accenti, simboli tecnici e lingua inglese/italiana.
+    regular_font = "Helvetica"
+    bold_font = "Helvetica-Bold"
+    font_candidates = [
+        ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+        ("/usr/share/fonts/dejavu/DejaVuSans.ttf", "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf"),
+    ]
+    for regular_path, bold_path in font_candidates:
+        if os.path.exists(regular_path) and os.path.exists(bold_path):
+            try:
+                pdfmetrics.registerFont(TTFont("ReportRegular", regular_path))
+                pdfmetrics.registerFont(TTFont("ReportBold", bold_path))
+                regular_font, bold_font = "ReportRegular", "ReportBold"
+                break
+            except Exception:
+                pass
+
+    try:
+        df_pdf, df_atm, _ = load_produzione_atm(impianto_scelto)
+    except Exception:
+        df_pdf, df_atm = pd.DataFrame(), pd.DataFrame()
+
+    daily = _report_build_daily(df_pdf, df_atm, start_date, end_date)
+    ro_all = calcola_metriche_derivate(df_ro_raw) if df_ro_raw is not None and not df_ro_raw.empty else pd.DataFrame()
+    ro_period = _report_filter_period(ro_all, start_date, end_date)
+    uf_period = _report_filter_period(df_uf, start_date, end_date)
+    nas_period = _report_filter_period(df_nas, start_date, end_date)
+
+    days = max(1, (pd.Timestamp(end_date) - pd.Timestamp(start_date)).days + 1)
+    def total(col):
+        if col not in daily.columns or not daily[col].notna().any():
+            return np.nan
+        return pd.to_numeric(daily[col], errors="coerce").sum(min_count=1)
+
+    total_prod = total("permeato")
+    total_conc = total("concentrato")
+    total_atm_l = total("atm_litri")
+    total_atm = total_atm_l / 1000.0 if pd.notna(total_atm_l) else np.nan
+    avg_prod = total_prod / days if pd.notna(total_prod) else np.nan
+    avg_conc = total_conc / days if pd.notna(total_conc) else np.nan
+    avg_atm = total_atm / days if pd.notna(total_atm) else np.nan
+    balance = total_prod - total_atm if pd.notna(total_prod) and pd.notna(total_atm) else np.nan
+    ratio = total_atm / total_prod * 100 if pd.notna(total_prod) and total_prod > 0 and pd.notna(total_atm) else np.nan
+
+    buffer = io.BytesIO()
+    plant_display = tr_text(impianto_scelto)[2:].strip()
+    period_label = f"{pd.Timestamp(start_date).strftime('%d/%m/%Y')} - {pd.Timestamp(end_date).strftime('%d/%m/%Y')}"
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=1.35 * cm,
+        leftMargin=1.35 * cm,
+        topMargin=1.55 * cm,
+        bottomMargin=1.35 * cm,
+        title=_r("Report operativo e manutentivo", "Operational and Maintenance Report"),
+        author="Water Partners Fleet Management",
+    )
+
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name="ReportTitle", parent=styles["Title"], fontName=bold_font, fontSize=21, leading=25, alignment=TA_CENTER, spaceAfter=12))
+    styles.add(ParagraphStyle(name="ReportSubtitle", parent=styles["Normal"], fontName=regular_font, fontSize=10, leading=14, alignment=TA_CENTER, textColor=colors.HexColor("#475569"), spaceAfter=18))
+    styles.add(ParagraphStyle(name="ReportH1", parent=styles["Heading1"], fontName=bold_font, fontSize=15, leading=18, textColor=colors.HexColor("#0F4C5C"), spaceBefore=7, spaceAfter=8))
+    styles.add(ParagraphStyle(name="ReportH2", parent=styles["Heading2"], fontName=bold_font, fontSize=11.5, leading=14, textColor=colors.HexColor("#1F2937"), spaceBefore=5, spaceAfter=5))
+    styles.add(ParagraphStyle(name="ReportBody", parent=styles["BodyText"], fontName=regular_font, fontSize=8.8, leading=12, spaceAfter=5))
+    styles.add(ParagraphStyle(name="ReportSmall", parent=styles["BodyText"], fontName=regular_font, fontSize=7.2, leading=9))
+    styles.add(ParagraphStyle(name="ReportMetric", parent=styles["BodyText"], fontName=bold_font, fontSize=11.5, leading=14, alignment=TA_CENTER))
+    styles.add(ParagraphStyle(name="ReportMetricLabel", parent=styles["BodyText"], fontName=regular_font, fontSize=7.5, leading=9, alignment=TA_CENTER, textColor=colors.HexColor("#475569")))
+
+    story = []
+    story.append(Spacer(1, 0.5 * cm))
+    story.append(Paragraph(_r("REPORT OPERATIVO E MANUTENTIVO", "OPERATIONAL AND MAINTENANCE REPORT"), styles["ReportTitle"]))
+    story.append(Paragraph(f"{escape(plant_display)}<br/>{_r('Periodo', 'Period')}: {period_label}<br/>{_r('Generato il', 'Generated on')}: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}", styles["ReportSubtitle"]))
+
+    metric_data = [
+        [Paragraph(_r("Totale prodotto", "Total production"), styles["ReportMetricLabel"]), Paragraph(_r("Totale venduto ATM", "Total ATM sales"), styles["ReportMetricLabel"]), Paragraph(_r("Totale concentrato", "Total concentrate"), styles["ReportMetricLabel"])],
+        [Paragraph(_report_format_number(total_prod, "m³"), styles["ReportMetric"]), Paragraph(_report_format_number(total_atm, "m³"), styles["ReportMetric"]), Paragraph(_report_format_number(total_conc, "m³"), styles["ReportMetric"])],
+        [Paragraph(_r("Media produzione", "Average production"), styles["ReportMetricLabel"]), Paragraph(_r("Media vendite ATM", "Average ATM sales"), styles["ReportMetricLabel"]), Paragraph(_r("Media concentrato", "Average concentrate"), styles["ReportMetricLabel"])],
+        [Paragraph(_report_format_number(avg_prod, _r("m³/giorno", "m³/day")), styles["ReportMetric"]), Paragraph(_report_format_number(avg_atm, _r("m³/giorno", "m³/day")), styles["ReportMetric"]), Paragraph(_report_format_number(avg_conc, _r("m³/giorno", "m³/day")), styles["ReportMetric"])],
+    ]
+    metric_table = Table(metric_data, colWidths=[6.05 * cm] * 3, rowHeights=[0.55 * cm, 0.72 * cm, 0.55 * cm, 0.72 * cm])
+    metric_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+        ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#CBD5E1")),
+        ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#E2E8F0")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    story.append(metric_table)
+    story.append(Spacer(1, 0.35 * cm))
+
+    secondary_rows = [
+        [_r("Giorni nel periodo", "Days in period"), str(days)],
+        [_r("Rapporto vendite ATM / produzione", "ATM sales / production ratio"), f"{ratio:.0f}%" if pd.notna(ratio) else _r("N/D", "N/A")],
+        [_r("Differenza produzione - vendite ATM", "Production - ATM sales difference"), _report_format_number(balance, "m³")],
+        [_r("Campioni RO", "RO samples"), f"{len(ro_period):,}"],
+        [_r("Campioni UF", "UF samples"), f"{len(uf_period):,}"],
+        [_r("Campioni inverter", "Inverter samples"), f"{len(nas_period):,}"],
+    ]
+    sec_table = Table(secondary_rows, colWidths=[9.6 * cm, 8.55 * cm])
+    sec_table.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), regular_font),
+        ("FONTNAME", (0, 0), (0, -1), bold_font),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#EAF2F4")),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#CBD5E1")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(sec_table)
+
+    # Asset health summary and automatic observations.
+    if not ro_period.empty:
+        baseline_ro = ro_all.iloc[0]
+        latest_ro = ro_period.iloc[-1]
+        L_PERM_RO = float(baseline_ro.get("perm_norm_smooth", np.nan)) * 0.85
+        L_DPRO = float(baseline_ro.get("dp_ro_smooth", np.nan)) * 1.15
+        L_DPCF01 = 1.0
+        asset_rows = [[_r("Asset", "Asset"), _r("Valore attuale", "Current value"), _r("Health score", "Health score"), _r("Stima soglia", "Threshold estimate")]]
+        assets = [
+            (_r("Membrane RO", "RO membranes"), "perm_norm_smooth", L_PERM_RO, False, ""),
+            (_r("Spaziatori RO", "RO spacers"), "dp_ro_smooth", L_DPRO, True, "bar"),
+            (_r("Cartucce CF01", "CF01 cartridges"), "dp_cf01", L_DPCF01, True, "bar"),
+        ]
+        if config_attuale.get("has_bag_filters") and "pit007" in ro_period.columns:
+            assets.append((_r("Filtri a calza", "Bag filters"), "pit007", 1.0, True, "bar"))
+        for name, col, limit, is_max, unit in assets:
+            if col not in ro_period.columns or col not in baseline_ro.index:
+                continue
+            current = pd.to_numeric(pd.Series([latest_ro.get(col)]), errors="coerce").iloc[0]
+            base = pd.to_numeric(pd.Series([baseline_ro.get(col)]), errors="coerce").iloc[0]
+            if pd.isna(current) or pd.isna(base) or pd.isna(limit):
+                continue
+            score = get_health_score(current, base, limit, is_max)
+            days_left = stima_giorni_rimanenti(ro_period, col, limit, is_max)
+            estimate = _r("Stabile", "Stable") if days_left == 999 else (f"{days_left} {_r('giorni', 'days')}" if days_left is not None else _r("Dati insufficienti", "Insufficient data"))
+            asset_rows.append([name, f"{current:.2f} {unit}".strip(), f"{score:.0f}%", estimate])
+
+        if config_attuale.get("has_uf") and not uf_period.empty and "uftmp" in uf_period.columns:
+            uf_base = pd.to_numeric(pd.Series([df_uf.iloc[0].get("uftmp")]), errors="coerce").iloc[0]
+            uf_current = pd.to_numeric(pd.Series([uf_period.iloc[-1].get("uftmp")]), errors="coerce").iloc[0]
+            if pd.notna(uf_base) and pd.notna(uf_current) and uf_base != 0:
+                score = get_health_score(uf_current, uf_base, 1.5, True)
+                days_left = stima_giorni_rimanenti(uf_period, "uftmp", 1.5, True)
+                estimate = _r("Stabile", "Stable") if days_left == 999 else (f"{days_left} {_r('giorni', 'days')}" if days_left is not None else _r("Dati insufficienti", "Insufficient data"))
+                asset_rows.append([_r("Membrane UF", "UF membranes"), f"{uf_current:.2f} bar", f"{score:.0f}%", estimate])
+
+        if len(asset_rows) > 1:
+            story.append(Spacer(1, 0.3 * cm))
+            story.append(Paragraph(_r("Sintesi dello stato degli asset", "Asset condition summary"), styles["ReportH1"]))
+            asset_table = Table(asset_rows, repeatRows=1, colWidths=[6.2 * cm, 4.0 * cm, 3.4 * cm, 4.55 * cm])
+            asset_table.setStyle(TableStyle([
+                ("FONTNAME", (0, 0), (-1, 0), bold_font),
+                ("FONTNAME", (0, 1), (-1, -1), regular_font),
+                ("FONTSIZE", (0, 0), (-1, -1), 7.7),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F4C5C")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
+                ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#CBD5E1")),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (1, 1), (-1, -1), "CENTER"),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]))
+            story.append(asset_table)
+
+    if include_notes:
+        observations = []
+        if pd.notna(ratio):
+            observations.append(_r(
+                f"Nel periodo le vendite ATM equivalgono al {ratio:.0f}% della produzione registrata. Il rapporto non rappresenta automaticamente una perdita, perché può risentire di accumuli, altri consumi e differenze temporali.",
+                f"During the period, ATM sales equal {ratio:.0f}% of recorded production. This ratio does not automatically represent a loss, as it may reflect storage, other uses and timing differences."
+            ))
+        if len(daily) > 0:
+            days_prod = int(daily["permeato"].notna().sum())
+            days_atm = int(daily["atm_litri"].notna().sum())
+            observations.append(_r(
+                f"Copertura dati: produzione disponibile per {days_prod} giorni e ATM per {days_atm} giorni su {days}.",
+                f"Data coverage: production is available for {days_prod} days and ATM sales for {days_atm} days out of {days}."
+            ))
+        if observations:
+            story.append(Spacer(1, 0.25 * cm))
+            story.append(Paragraph(_r("Osservazioni automatiche", "Automatic observations"), styles["ReportH1"]))
+            for item in observations:
+                story.append(Paragraph(f"- {escape(item)}", styles["ReportBody"]))
+
+    # Production and sales section.
+    if "Produzione e vendite" in selected_sections:
+        story.append(PageBreak())
+        story.append(Paragraph(_r("Produzione, concentrato e vendite ATM", "Production, concentrate and ATM sales"), styles["ReportH1"]))
+        production_chart = _report_chart_daily_volumes(daily, selected_series)
+        if production_chart is not None:
+            story.append(Image(production_chart, width=18.1 * cm, height=8.15 * cm))
+        story.append(Spacer(1, 0.15 * cm))
+        story.append(Paragraph(_r(
+            "Le medie sono calcolate sui giorni di calendario compresi nel periodo selezionato. La differenza tra produzione e vendite ATM può includere variazioni di livello dei serbatoi, altri utilizzi e sfasamenti temporali.",
+            "Averages are calculated over the calendar days in the selected period. The difference between production and ATM sales may include tank-level changes, other uses and timing offsets."
+        ), styles["ReportSmall"]))
+
+    # RO predictive charts.
+    if "Performance RO" in selected_sections and not ro_period.empty:
+        story.append(PageBreak())
+        story.append(Paragraph(_r("Andamento e previsione degli asset RO", "RO asset trends and forecasts"), styles["ReportH1"]))
+        baseline_ro = ro_all.iloc[0]
+        charts = []
+        charts.append(_report_chart_trend(ro_period, "perm_norm_smooth", "Permeabilità normalizzata delle membrane RO", "RO membrane normalised permeability", "Permeabilità normalizzata", "Normalised permeability", limit=float(baseline_ro.get("perm_norm_smooth", np.nan)) * 0.85, forecast_days=30, direction="down"))
+        charts.append(_report_chart_trend(ro_period, "dp_ro_smooth", "Salto di pressione delle membrane RO", "RO membrane pressure drop", "ΔP (bar)", "ΔP (bar)", limit=float(baseline_ro.get("dp_ro_smooth", np.nan)) * 1.15, baseline=float(baseline_ro.get("dp_ro_smooth", np.nan)), forecast_days=30, direction="up"))
+        charts.append(_report_chart_trend(ro_period, "dp_cf01", "Intasamento delle cartucce CF01", "CF01 cartridge clogging", "ΔP (bar)", "ΔP (bar)", limit=1.0, baseline=float(baseline_ro.get("dp_cf01", np.nan)), forecast_days=20, direction="up"))
+        charts.append(_report_chart_two_percent(ro_period, "recovery", "sr_norm"))
+        if config_attuale.get("has_sec") and "sec" in ro_period.columns:
+            charts.append(_report_chart_trend(ro_period, "sec", "Consumo specifico di energia", "Specific energy consumption", "SEC (kWh/m³)", "SEC (kWh/m³)"))
+        for chart in [c for c in charts if c is not None]:
+            story.append(Image(chart, width=18.1 * cm, height=7.65 * cm))
+            story.append(Spacer(1, 0.2 * cm))
+
+    # UF / bag filters.
+    if "UF e filtri" in selected_sections:
+        filter_charts = []
+        if config_attuale.get("has_uf") and not uf_period.empty:
+            filter_charts.append(_report_chart_trend(uf_period, "uftmp", "TMP delle membrane UF", "UF membrane TMP", "TMP (bar)", "TMP (bar)", limit=1.5, baseline=float(df_uf.iloc[0].get("uftmp", np.nan)), forecast_days=30, direction="up"))
+            filter_charts.append(_report_chart_trend(uf_period, "dpscf", "Salto di pressione del filtro UF", "UF filter pressure drop", "ΔP (bar)", "ΔP (bar)"))
+        if config_attuale.get("has_bag_filters") and not ro_period.empty and "pit007" in ro_period.columns:
+            filter_charts.append(_report_chart_trend(ro_period, "pit007", "Intasamento dei filtri a calza", "Bag-filter clogging", "ΔP (bar)", "ΔP (bar)", limit=1.0, baseline=float(ro_all.iloc[0].get("pit007", np.nan)), forecast_days=20, direction="up"))
+        filter_charts = [c for c in filter_charts if c is not None]
+        if filter_charts:
+            story.append(PageBreak())
+            story.append(Paragraph(_r("Ultrafiltrazione e filtri", "Ultrafiltration and filters"), styles["ReportH1"]))
+            for chart in filter_charts:
+                story.append(Image(chart, width=18.1 * cm, height=7.65 * cm))
+                story.append(Spacer(1, 0.2 * cm))
+
+    # Motor diagnostics.
+    if "Motori e pompe" in selected_sections and not nas_period.empty:
+        story.append(PageBreak())
+        story.append(Paragraph(_r("Diagnostica di motori e pompe", "Motor and pump diagnostics"), styles["ReportH1"]))
+        motor_stats = _report_motor_stats(nas_period, config_attuale, impianto_scelto)
+        if not motor_stats.empty:
+            headers = list(motor_stats.columns)
+            motor_rows = [headers]
+            for _, row in motor_stats.iterrows():
+                motor_rows.append([
+                    str(row["ID"]),
+                    str(row[_r("Pompa", "Pump")]),
+                    f"{row[_r('Deriva Cosφ', 'Cosφ drift')]:+.1f}%",
+                    str(row[_r("Stato elettrico", "Electrical status")]),
+                    f"{row[_r('Deriva A/Hz', 'A/Hz drift')]:+.1f}%",
+                    str(row[_r("Stato meccanico", "Mechanical status")]),
+                ])
+            motor_table = Table(motor_rows, repeatRows=1, colWidths=[1.25 * cm, 5.0 * cm, 2.5 * cm, 3.0 * cm, 2.5 * cm, 3.5 * cm])
+            motor_table.setStyle(TableStyle([
+                ("FONTNAME", (0, 0), (-1, 0), bold_font),
+                ("FONTNAME", (0, 1), (-1, -1), regular_font),
+                ("FONTSIZE", (0, 0), (-1, -1), 6.7),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F4C5C")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
+                ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#CBD5E1")),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (0, 0), (0, -1), "CENTER"),
+                ("ALIGN", (2, 1), (-1, -1), "CENTER"),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]))
+            story.append(motor_table)
+            story.append(Spacer(1, 0.25 * cm))
+        for metric in ("cosphi", "ahz"):
+            chart = _report_chart_motors(nas_period, config_attuale, metric)
+            if chart is not None:
+                story.append(Image(chart, width=18.1 * cm, height=8.0 * cm))
+                story.append(Spacer(1, 0.2 * cm))
+
+    if "Tabella giornaliera" in selected_sections:
+        story.append(PageBreak())
+        story.append(Paragraph(_r("Dettaglio giornaliero", "Daily detail"), styles["ReportH1"]))
+        daily_rows = [[_r("Data", "Date"), _r("Produzione (m³)", "Production (m³)"), _r("Vendite ATM (m³)", "ATM sales (m³)"), _r("Concentrato (m³)", "Concentrate (m³)")]]
+        for _, row in daily.iterrows():
+            daily_rows.append([
+                pd.Timestamp(row["data_rif"]).strftime("%d/%m/%Y"),
+                "" if pd.isna(row["permeato"]) else f"{row['permeato']:.0f}",
+                "" if pd.isna(row["atm_m3"]) else f"{row['atm_m3']:.0f}",
+                "" if pd.isna(row["concentrato"]) else f"{row['concentrato']:.0f}",
+            ])
+        daily_table = Table(daily_rows, repeatRows=1, colWidths=[4.1 * cm, 4.7 * cm, 4.7 * cm, 4.7 * cm])
+        daily_table.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (-1, 0), bold_font),
+            ("FONTNAME", (0, 1), (-1, -1), regular_font),
+            ("FONTSIZE", (0, 0), (-1, -1), 7.4),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F4C5C")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#CBD5E1")),
+            ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(daily_table)
+
+    story.append(Spacer(1, 0.3 * cm))
+    story.append(Paragraph(_r(
+        "Nota: le stime predittive sono indicatori di supporto e devono essere confermate con verifica tecnica, qualità del dato e condizioni operative dell'impianto.",
+        "Note: predictive estimates are decision-support indicators and should be confirmed through technical inspection, data quality checks and the plant's operating conditions."
+    ), styles["ReportSmall"]))
+
+    def header_footer(canvas, document):
+        canvas.saveState()
+        canvas.setFont(regular_font, 7)
+        canvas.setFillColor(colors.HexColor("#64748B"))
+        canvas.drawString(document.leftMargin, 0.72 * cm, f"Water Partners Fleet Management - {plant_display}")
+        canvas.drawRightString(A4[0] - document.rightMargin, 0.72 * cm, f"{_r('Pagina', 'Page')} {canvas.getPageNumber()}")
+        canvas.setStrokeColor(colors.HexColor("#CBD5E1"))
+        canvas.line(document.leftMargin, 1.0 * cm, A4[0] - document.rightMargin, 1.0 * cm)
+        canvas.restoreState()
+
+    doc.build(story, onFirstPage=header_footer, onLaterPages=header_footer)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def render_report(impianto_scelto, config_attuale, df_ro_raw, df_uf, df_nas):
+    st.header("📄 Generazione Report")
+    st.caption("Il report usa la lingua attualmente selezionata nella dashboard.")
+
+    # Recupera le date disponibili da tutte le sorgenti per proporre un periodo sensato.
+    all_dates = []
+    for frame in (df_ro_raw, df_uf, df_nas):
+        if frame is None or frame.empty:
+            continue
+        if "date_str" in frame.columns:
+            all_dates.extend(pd.to_datetime(frame["date_str"], errors="coerce").dropna().tolist())
+        elif "timestamp" in frame.columns:
+            all_dates.extend(pd.to_datetime(pd.to_numeric(frame["timestamp"], errors="coerce"), unit="s", errors="coerce").dropna().tolist())
+    try:
+        df_pdf, df_atm, _ = load_produzione_atm(impianto_scelto)
+        if not df_pdf.empty:
+            all_dates.extend(pd.to_datetime(df_pdf["data_rif"], errors="coerce").dropna().tolist())
+        if not df_atm.empty:
+            all_dates.extend(pd.to_datetime(df_atm["data_rif"], errors="coerce").dropna().tolist())
+    except Exception:
+        pass
+
+    if not all_dates:
+        st.info("Nessun dato disponibile per generare il report.")
+        return
+
+    min_date = pd.Timestamp(min(all_dates)).normalize()
+    max_date = pd.Timestamp(max(all_dates)).normalize()
+    default_start = max(min_date, max_date.to_period("M").start_time.normalize())
+
+    period = st.date_input(
+        "Periodo del report:",
+        value=[default_start.date(), max_date.date()],
+        min_value=min_date.date(),
+        max_value=max_date.date(),
+        key="report_date_range",
+    )
+
+    available_series = ["Produzione", "Vendite ATM", "Concentrato"]
+    selected_series = st.multiselect(
+        "Serie del grafico produzione:",
+        options=available_series,
+        default=["Produzione", "Vendite ATM"],
+        help="Il concentrato non è incluso di default nel grafico del report.",
+        key="report_volume_series",
+    )
+
+    available_sections = ["Produzione e vendite", "Performance RO"]
+    if config_attuale.get("has_uf") or config_attuale.get("has_bag_filters"):
+        available_sections.append("UF e filtri")
+    available_sections.append("Motori e pompe")
+    available_sections.append("Tabella giornaliera")
+    default_sections = [section for section in ["Produzione e vendite", "Performance RO", "UF e filtri", "Motori e pompe"] if section in available_sections]
+    selected_sections = st.multiselect(
+        "Sezioni da includere:",
+        options=available_sections,
+        default=default_sections,
+        key="report_sections",
+    )
+    include_notes = st.checkbox(
+        "Includi note automatiche e indicatori di qualità del dato",
+        value=True,
+        key="report_include_notes",
+    )
+
+    valid_period = isinstance(period, (list, tuple)) and len(period) == 2 and period[0] <= period[1]
+    if not valid_period:
+        st.warning("Seleziona una data iniziale e una data finale valide.")
+        return
+
+    start_date, end_date = pd.Timestamp(period[0]), pd.Timestamp(period[1])
+    report_key = f"generated_report_{re.sub(r'[^A-Za-z0-9]+', '_', impianto_scelto)}"
+
+    if st.button("Genera report PDF", type="primary", key="generate_pdf_report"):
+        try:
+            with _RAW_ST.spinner(tr_text("Generazione del report in corso...")):
+                pdf_bytes = genera_report_pdf(
+                    impianto_scelto=impianto_scelto,
+                    config_attuale=config_attuale,
+                    start_date=start_date,
+                    end_date=end_date,
+                    df_ro_raw=df_ro_raw,
+                    df_uf=df_uf,
+                    df_nas=df_nas,
+                    selected_sections=selected_sections,
+                    selected_series=selected_series,
+                    include_notes=include_notes,
+                )
+            _RAW_ST.session_state[report_key] = pdf_bytes
+            _RAW_ST.session_state[f"{report_key}_filename"] = (
+                f"report_{'en' if UI_LANGUAGE == 'en' else 'it'}_"
+                f"{re.sub(r'[^A-Za-z0-9]+', '_', impianto_scelto[2:]).strip('_')}_"
+                f"{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}.pdf"
+            )
+            st.success("Report generato correttamente.")
+        except Exception as exc:
+            st.error(f"{_r('Errore nella generazione del report', 'Report generation error')}: {exc}")
+
+    if report_key in _RAW_ST.session_state:
+        st.download_button(
+            "Scarica report PDF",
+            data=_RAW_ST.session_state[report_key],
+            file_name=_RAW_ST.session_state.get(f"{report_key}_filename", "report.pdf"),
+            mime="application/pdf",
+            key="download_generated_pdf_report",
+        )
+
 def render_atm(impianto_scelto):
     st.header("🏢 Telemetria ATM (Distribuito)")
     
@@ -1401,7 +2168,7 @@ if __name__ == '__main__':
     config_attuale = CONFIG_IMPIANTI[impianto_scelto]
 
     menu_opzioni = ["🔵 Osmosi Inversa (RO)", "⚡ Inverter & Pompe", "📈 Grafici Personalizzati", 
-                    "🔮 Manutenzione Predittiva", "⚖️ Confronto Periodi", "📊 Produzione & ATM"]
+                    "🔮 Manutenzione Predittiva", "⚖️ Confronto Periodi", "📊 Produzione & ATM", "📄 Report"]
     if config_attuale["has_uf"]: 
         menu_opzioni.insert(1, "🟢 Ultrafiltrazione (UF)")
         
@@ -1415,6 +2182,9 @@ if __name__ == '__main__':
 
     if sezione_selezionata == "📊 Produzione & ATM":
         render_produzione_atm(impianto_scelto)
+
+    elif sezione_selezionata == "📄 Report":
+        render_report(impianto_scelto, config_attuale, df_ro_raw, df_uf, df_nas)
 
     elif df_ro_raw.empty:
         st.info(f"Nessun dato registrato per {impianto_scelto}. In attesa dei log...")
