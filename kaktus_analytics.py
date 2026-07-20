@@ -709,6 +709,79 @@ def render_produzione_atm(impianto_scelto):
             return np.nan
         return df[colonna].sum(min_count=1)
 
+    def crea_grafico_barre(dati_giornalieri, serie, titolo):
+        """Crea il grafico a barre per mese o intervallo personalizzato."""
+        if dati_giornalieri is None or dati_giornalieri.empty or not serie:
+            return None
+
+        fig_locale = go.Figure()
+
+        if "Produzione" in serie:
+            fig_locale.add_trace(go.Bar(
+                x=dati_giornalieri["data_rif"],
+                y=dati_giornalieri["permeato"],
+                name="Produzione",
+                marker_color="#2E86DE",
+                offsetgroup="produzione",
+                texttemplate="%{y:,.0f}",
+                textposition="outside",
+                cliponaxis=False,
+                hovertemplate=(
+                    "%{x|%d/%m/%Y}<br>"
+                    "Produzione: %{y:,.0f} m³<extra></extra>"
+                )
+            ))
+
+        if "Vendite ATM" in serie:
+            fig_locale.add_trace(go.Bar(
+                x=dati_giornalieri["data_rif"],
+                y=dati_giornalieri["atm_m3"],
+                name="Vendite ATM",
+                marker_color="#F39C12",
+                offsetgroup="atm",
+                texttemplate="%{y:,.0f}",
+                textposition="outside",
+                cliponaxis=False,
+                customdata=dati_giornalieri[["atm_litri"]],
+                hovertemplate=(
+                    "%{x|%d/%m/%Y}<br>"
+                    "Venduto: %{y:,.0f} m³<br>"
+                    "(%{customdata[0]:,.0f} L)<extra></extra>"
+                )
+            ))
+
+        if "Concentrato" in serie:
+            fig_locale.add_trace(go.Bar(
+                x=dati_giornalieri["data_rif"],
+                y=dati_giornalieri["concentrato"],
+                name="Concentrato",
+                marker_color="#7F8C8D",
+                offsetgroup="concentrato",
+                texttemplate="%{y:,.0f}",
+                textposition="outside",
+                cliponaxis=False,
+                hovertemplate=(
+                    "%{x|%d/%m/%Y}<br>"
+                    "Concentrato: %{y:,.0f} m³<extra></extra>"
+                )
+            ))
+
+        fig_locale.update_layout(
+            title=titolo,
+            xaxis_title="Data",
+            yaxis_title="Volume giornaliero (m³)",
+            barmode="group",
+            bargap=0.22,
+            bargroupgap=0.04,
+            hovermode="x unified",
+            legend_title_text="Dato",
+            uniformtext_minsize=8,
+            uniformtext_mode="show",
+            margin=dict(l=20, r=20, t=85, b=20)
+        )
+        fig_locale.update_yaxes(rangemode="tozero", automargin=True)
+        return fig_locale
+
     # ---------------------------------------------------------
     # Intervallo complessivo disponibile
     # ---------------------------------------------------------
@@ -748,13 +821,18 @@ def render_produzione_atm(impianto_scelto):
         )
 
     with col_serie:
+        serie_predefinite = [
+            serie for serie in ["Produzione", "Vendite ATM"]
+            if serie in serie_disponibili
+        ]
         serie_scelte = st.multiselect(
             "Dati da visualizzare nel grafico:",
             options=serie_disponibili,
-            default=serie_disponibili,
+            default=serie_predefinite,
             help=(
                 "Puoi mostrare Produzione, Vendite ATM e Concentrato "
-                "singolarmente oppure in qualsiasi combinazione."
+                "singolarmente oppure in qualsiasi combinazione. "
+                "Il concentrato non è selezionato di default."
             )
         )
 
@@ -939,6 +1017,26 @@ def render_produzione_atm(impianto_scelto):
                 f"Periodo dal {data_da.strftime('%d/%m/%Y')} al "
                 f"{data_a.strftime('%d/%m/%Y')}: {giorni_custom} giorni di calendario."
             )
+
+            st.markdown("#### Grafico del periodo selezionato")
+            if not serie_scelte:
+                st.info("Seleziona almeno una serie da visualizzare nel grafico.")
+            else:
+                fig_periodo = crea_grafico_barre(
+                    giornaliero_custom,
+                    serie_scelte,
+                    (
+                        "Volumi giornalieri — "
+                        f"{data_da.strftime('%d/%m/%Y')} – "
+                        f"{data_a.strftime('%d/%m/%Y')}"
+                    )
+                )
+                if fig_periodo is not None:
+                    st.plotly_chart(
+                        fig_periodo,
+                        use_container_width=True,
+                        key="grafico_periodo_personalizzato"
+                    )
     else:
         st.info("Seleziona una data iniziale e una data finale.")
 
@@ -946,77 +1044,22 @@ def render_produzione_atm(impianto_scelto):
     # Grafico mensile
     # ---------------------------------------------------------
     st.markdown("---")
+    st.markdown("#### Grafico del mese selezionato")
 
     if not serie_scelte:
         st.info("Seleziona almeno una serie da visualizzare nel grafico.")
     else:
-        fig = go.Figure()
-
-        if "Produzione" in serie_scelte:
-            fig.add_trace(go.Bar(
-                x=giornaliero["data_rif"],
-                y=giornaliero["permeato"],
-                name="Produzione",
-                marker_color="#2E86DE",
-                offsetgroup="produzione",
-                texttemplate="%{y:,.0f}",
-                textposition="outside",
-                cliponaxis=False,
-                hovertemplate=(
-                    "%{x|%d/%m/%Y}<br>"
-                    "Produzione: %{y:,.0f} m³<extra></extra>"
-                )
-            ))
-
-        if "Vendite ATM" in serie_scelte:
-            fig.add_trace(go.Bar(
-                x=giornaliero["data_rif"],
-                y=giornaliero["atm_m3"],
-                name="Vendite ATM",
-                marker_color="#F39C12",
-                offsetgroup="atm",
-                texttemplate="%{y:,.0f}",
-                textposition="outside",
-                cliponaxis=False,
-                customdata=giornaliero[["atm_litri"]],
-                hovertemplate=(
-                    "%{x|%d/%m/%Y}<br>"
-                    "Venduto: %{y:,.0f} m³<br>"
-                    "(%{customdata[0]:,.0f} L)<extra></extra>"
-                )
-            ))
-
-        if "Concentrato" in serie_scelte:
-            fig.add_trace(go.Bar(
-                x=giornaliero["data_rif"],
-                y=giornaliero["concentrato"],
-                name="Concentrato",
-                marker_color="#7F8C8D",
-                offsetgroup="concentrato",
-                texttemplate="%{y:,.0f}",
-                textposition="outside",
-                cliponaxis=False,
-                hovertemplate=(
-                    "%{x|%d/%m/%Y}<br>"
-                    "Concentrato: %{y:,.0f} m³<extra></extra>"
-                )
-            ))
-
-        fig.update_layout(
-            title=f"Volumi giornalieri — {etichetta_mese(mese_scelto)}",
-            xaxis_title="Data",
-            yaxis_title="Volume giornaliero (m³)",
-            barmode="group",
-            bargap=0.22,
-            bargroupgap=0.04,
-            hovermode="x unified",
-            legend_title_text="Dato",
-            uniformtext_minsize=8,
-            uniformtext_mode="show",
-            margin=dict(l=20, r=20, t=85, b=20)
+        fig_mese = crea_grafico_barre(
+            giornaliero,
+            serie_scelte,
+            f"Volumi giornalieri — {etichetta_mese(mese_scelto)}"
         )
-        fig.update_yaxes(rangemode="tozero", automargin=True)
-        st.plotly_chart(fig, use_container_width=True)
+        if fig_mese is not None:
+            st.plotly_chart(
+                fig_mese,
+                use_container_width=True,
+                key="grafico_mese_produzione_atm"
+            )
 
     # ---------------------------------------------------------
     # Tabelle
