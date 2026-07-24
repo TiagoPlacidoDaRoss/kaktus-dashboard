@@ -40,6 +40,16 @@ _EXACT_TRANSLATIONS.update({
     "Il report usa la lingua attualmente selezionata nella dashboard.": "The report uses the language currently selected in the dashboard.",
     "Il concentrato non è incluso di default nel grafico del report.": "Concentrate is not included in the report chart by default.",
     "Includi note automatiche e indicatori di qualità del dato": "Include automatic notes and data-quality indicators",
+    "💧 Qualità Acqua (Manuale)": "💧 Water Quality (Manual)",
+    "Registro Qualità Acqua (Inserimenti Manuali)": "Water Quality Log (Manual Entries)",
+    "Nessun dato di qualità dell'acqua trovato per questo impianto.": "No water quality data found for this plant.",
+    "Data Rilievo": "Date",
+    "Operatore": "Operator",
+    "Strumento": "Instrument",
+    "Seleziona un report per visualizzare i valori e la firma:": "Select a report to view values and signature:",
+    "Dettaglio Misurazione e Firma": "Measurement Details and Signature",
+    "Nessuna firma disponibile.": "No signature available.",
+    "Nessun valore registrato in questa tabella.": "No values recorded in this table."
 })
 
 _PHRASE_TRANSLATIONS = {'Sistema di Monitoraggio - ': 'Monitoring System — ', 'Origine Dati: ': 'Data source: ', 'Nessun dato registrato per ': 'No data recorded for ', '. In attesa dei log...': '. Waiting for logs...', 'Nessun dato PDF trovato per ': 'No PDF data found for ', 'Errore caricamento dati PDF: ': 'Error loading PDF data: ', 'Nessun misuratore di portata FIT disponibile nei dati.': 'No FIT flow meter is available in the data.', '#### Portate istantanee — tutti i FIT': '#### Instantaneous flow rates — all FIT meters', 'Fouling: Indice di Permeabilità ASTM (Media Mobile)': 'Fouling: ASTM Permeability Index (Moving Average)', 'Dinamica Pressioni Idrauliche': 'Hydraulic Pressure Dynamics', 'Dati Cosφ non disponibili o insufficienti per ': 'Cosφ data are unavailable or insufficient for ', "Nessun dato numerico valido nell'intervallo selezionato.": 'No valid numerical data in the selected range.', 'Stimato in: ': 'Estimated in: ', ' giorni': ' days', 'Dati insufficienti per la previsione delle membrane RO.': 'Insufficient data for the RO membrane forecast.', 'Lavaggio chimico (CIP) tra **': 'Chemical cleaning (CIP) in **', 'Dati insufficienti per la previsione degli spaziatori RO.': 'Insufficient data for the RO spacer forecast.', 'Lavaggio (CIP) stimato tra **': 'Cleaning (CIP) estimated in **', 'In attesa di dati UF sufficienti...': 'Waiting for sufficient UF data...', 'Dati insufficienti per la previsione dei filtri a calza.': 'Insufficient data for the bag-filter forecast.', 'Dati insufficienti per la previsione delle cartucce CF01.': 'Insufficient data for the CF01 cartridge forecast.', 'In attesa di dati inverter sufficienti...': 'Waiting for sufficient inverter data...', 'Non ci sono abbastanza campioni validi per costruire il cruscotto motori.': 'There are not enough valid samples to build the motor dashboard.', 'Previsione Fouling Membrane RO': 'RO Membrane Fouling Forecast', 'Previsione Fouling Spaziatori RO': 'RO Spacer Fouling Forecast', 'Previsione TMP Ultrafiltrazione': 'Ultrafiltration TMP Forecast', 'Previsione Intasamento Filtri a Calza': 'Bag-filter Clogging Forecast', 'Previsione Intasamento Cartucce CF01': 'CF01 Cartridge Clogging Forecast', 'Sforzo Meccanico Relativo (A/Hz) - ': 'Relative Mechanical Load (A/Hz) — ', 'Salute Magnetica Statore (Cosφ) - ': 'Stator Magnetic Health (Cosφ) — ', 'Trend Cosφ - ': 'Cosφ Trend — ', 'Distribuzione e Stabilità: ': 'Distribution and Stability: ', 'Periodo A<br>(': 'Period A<br>(', 'Periodo B<br>(': 'Period B<br>(', 'Riepilogo mensile — ': 'Monthly summary — ', 'Le medie mensili sono calcolate su ': 'Monthly averages are calculated over ', ' trascorsi del mese': ' elapsed days of the month', ' di calendario': ' calendar days', 'La data iniziale deve precedere la data finale.': 'The start date must be earlier than the end date.', 'Periodo dal ': 'Period from ', ' al ': ' to ', ' giorni di calendario.': ' calendar days.', 'Seleziona una data iniziale e una data finale.': 'Select a start date and an end date.', 'Seleziona almeno una serie da visualizzare nel grafico.': 'Select at least one data series to display in the chart.', 'Volumi giornalieri — ': 'Daily volumes — ', 'Nessun dato di produzione PDF nel mese selezionato.': 'No PDF production data for the selected month.', 'Nessun dato ATM nel mese selezionato.': 'No ATM data for the selected month.', 'Errore nel caricamento dei dati Produzione/ATM: ': 'Error loading Production/ATM data: ', 'Nessun dato di produzione o ATM trovato per ': 'No production or ATM data found for ', 'Puoi mostrare Produzione, Vendite ATM e Concentrato singolarmente oppure in qualsiasi combinazione. Il concentrato non è selezionato di default.': 'You can display Production, ATM sales and Concentrate individually or in any combination. Concentrate is not selected by default.', 'Produzione: ': 'Production: ', 'Venduto: ': 'Sold: ', 'Concentrato: ': 'Concentrate: ', 'Trend Produzione - ': 'Production Trend — ', 'Distribuzione Erogazioni - ': 'Dispensing Distribution — ', 'Nessun dato ATM trovato per questo impianto.': 'No ATM data found for this plant.', 'Errore caricamento dati ATM: ': 'Error loading ATM data: ', ' (Sostit. ': ' (Replaced ', 'Media 24h': '24 h average', 'Permeabilità': 'Permeability', 'Reiezione': 'Rejection'}
@@ -2175,6 +2185,71 @@ def render_atm(impianto_scelto):
     except Exception as e:
         st.error(f"Errore caricamento dati ATM: {e}")
 
+def render_qualita_acqua(impianto_scelto):
+    st.header("💧 Registro Qualità Acqua (Inserimenti Manuali)")
+    
+    # Filtriamo per Kaktus, dato che al momento il modulo web è configurato lì
+    if "Kaktus" not in impianto_scelto:
+        st.info("Nessun dato di qualità dell'acqua trovato per questo impianto.")
+        return
+
+    try:
+        from supabase import create_client
+        supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+        
+        # Recupera i dati ordinandoli dal più recente
+        res = supabase.table("misurazioni_kaktus").select("*").order("data_rilievo", desc=True).execute()
+        df_acqua = pd.DataFrame(res.data)
+        
+        if df_acqua.empty:
+            st.info("Nessun dato di qualità dell'acqua trovato per questo impianto.")
+            return
+
+        # 1. TABELLA RIASSUNTIVA GENERALE
+        summary_df = df_acqua[['data_rilievo', 'operatore', 'strumento']].copy()
+        summary_df.columns = ['Data Rilievo', 'Operatore', 'Strumento']
+        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+
+        st.markdown("---")
+        st.subheader("Dettaglio Misurazione e Firma")
+
+        # 2. SELEZIONE DEL REPORT SPECIFICO
+        opzioni = df_acqua.apply(lambda x: f"{x['data_rilievo']} - {x['operatore']} ({x['strumento']})", axis=1).tolist()
+        scelta = st.selectbox("Seleziona un report per visualizzare i valori e la firma:", range(len(opzioni)), format_func=lambda i: opzioni[i])
+
+        record = df_acqua.iloc[scelta]
+
+        col1, col2 = st.columns([2, 1])
+
+        with col1:
+            # Estrazione e formattazione del JSONB della tabella
+            dati_tabella = record['dati_tabella']
+            if dati_tabella:
+                parsed_data = []
+                for punto, valori in dati_tabella.items():
+                    riga = {"Punto": punto}
+                    if 'cl' in valori: riga['Cl. (mg/l)'] = valori['cl']
+                    if 'cond' in valori: riga['Cond. (us)'] = valori['cond']
+                    if 'temp' in valori: riga['°C'] = valori['temp']
+                    if 'ph' in valori: riga['PH'] = valori['ph']
+                    parsed_data.append(riga)
+                
+                df_dettaglio = pd.DataFrame(parsed_data)
+                st.dataframe(df_dettaglio, use_container_width=True, hide_index=True)
+            else:
+                st.warning("Nessun valore registrato in questa tabella.")
+
+        with col2:
+            # Rendering dell'immagine Base64 nativo di Streamlit
+            firma = record['firma_operatore']
+            if firma and str(firma).startswith('data:image'):
+                st.image(firma, caption=f"Firma di {record['operatore']}", use_container_width=True)
+            else:
+                st.info("Nessuna firma disponibile.")
+                
+    except Exception as e:
+        st.error(f"Errore durante il caricamento dei dati da Supabase: {e}")
+
 # =========================================================
 # MAIN DASHBOARD ENTRY POINT
 # =========================================================
@@ -2197,7 +2272,7 @@ if __name__ == '__main__':
     config_attuale = CONFIG_IMPIANTI[impianto_scelto]
 
     menu_opzioni = ["🔵 Osmosi Inversa (RO)", "⚡ Inverter & Pompe", "📈 Grafici Personalizzati", 
-                    "🔮 Manutenzione Predittiva", "⚖️ Confronto Periodi", "📊 Produzione & ATM", "📄 Report"]
+                    "🔮 Manutenzione Predittiva", "⚖️ Confronto Periodi", "📊 Produzione & ATM", "💧 Qualità Acqua (Manuale)", "📄 Report"]
     if config_attuale["has_uf"]: 
         menu_opzioni.insert(1, "🟢 Ultrafiltrazione (UF)")
         
@@ -2211,6 +2286,11 @@ if __name__ == '__main__':
 
     if sezione_selezionata == "📊 Produzione & ATM":
         render_produzione_atm(impianto_scelto)
+
+    # --- NUOVA SEZIONE ---
+    elif sezione_selezionata == "💧 Qualità Acqua (Manuale)":
+        render_qualita_acqua(impianto_scelto)
+    # ---------------------
 
     elif sezione_selezionata == "📄 Report":
         render_report(impianto_scelto, config_attuale, df_ro_raw, df_uf, df_nas)
