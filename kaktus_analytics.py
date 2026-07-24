@@ -49,7 +49,7 @@ _EXACT_TRANSLATIONS.update({
     "Seleziona un report per visualizzare i valori e la firma:": "Select a report to view values and signature:",
     "Dettaglio Misurazione e Firma": "Measurement Details and Signature",
     "Nessuna firma disponibile.": "No signature available.",
-    "Nessun valore registrato in questa tabella.": "No values recorded in this table."
+    "Nessun valore registrato in questa tabella.": "No values recorded in this table.",
     "📈 Trend Temporale Qualità Acqua": "📈 Water Quality Time Trend",
     "Seleziona il parametro da analizzare:": "Select parameter to analyse:",
     "Seleziona i punti di campionamento:": "Select sampling points:",
