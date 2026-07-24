@@ -50,6 +50,14 @@ _EXACT_TRANSLATIONS.update({
     "Dettaglio Misurazione e Firma": "Measurement Details and Signature",
     "Nessuna firma disponibile.": "No signature available.",
     "Nessun valore registrato in questa tabella.": "No values recorded in this table."
+    "📈 Trend Temporale Qualità Acqua": "📈 Water Quality Time Trend",
+    "Seleziona il parametro da analizzare:": "Select parameter to analyse:",
+    "Seleziona i punti di campionamento:": "Select sampling points:",
+    "Cloro (mg/l)": "Chlorine (mg/l)",
+    "Conduttività (us)": "Conductivity (us)",
+    "Temperatura (°C)": "Temperature (°C)",
+    "Nessun dato disponibile per questa combinazione.": "No data available for this combination.",
+    "Non ci sono abbastanza dati storici per generare un grafico.": "Not enough historical data to generate a chart."
 })
 
 _PHRASE_TRANSLATIONS = {'Sistema di Monitoraggio - ': 'Monitoring System — ', 'Origine Dati: ': 'Data source: ', 'Nessun dato registrato per ': 'No data recorded for ', '. In attesa dei log...': '. Waiting for logs...', 'Nessun dato PDF trovato per ': 'No PDF data found for ', 'Errore caricamento dati PDF: ': 'Error loading PDF data: ', 'Nessun misuratore di portata FIT disponibile nei dati.': 'No FIT flow meter is available in the data.', '#### Portate istantanee — tutti i FIT': '#### Instantaneous flow rates — all FIT meters', 'Fouling: Indice di Permeabilità ASTM (Media Mobile)': 'Fouling: ASTM Permeability Index (Moving Average)', 'Dinamica Pressioni Idrauliche': 'Hydraulic Pressure Dynamics', 'Dati Cosφ non disponibili o insufficienti per ': 'Cosφ data are unavailable or insufficient for ', "Nessun dato numerico valido nell'intervallo selezionato.": 'No valid numerical data in the selected range.', 'Stimato in: ': 'Estimated in: ', ' giorni': ' days', 'Dati insufficienti per la previsione delle membrane RO.': 'Insufficient data for the RO membrane forecast.', 'Lavaggio chimico (CIP) tra **': 'Chemical cleaning (CIP) in **', 'Dati insufficienti per la previsione degli spaziatori RO.': 'Insufficient data for the RO spacer forecast.', 'Lavaggio (CIP) stimato tra **': 'Cleaning (CIP) estimated in **', 'In attesa di dati UF sufficienti...': 'Waiting for sufficient UF data...', 'Dati insufficienti per la previsione dei filtri a calza.': 'Insufficient data for the bag-filter forecast.', 'Dati insufficienti per la previsione delle cartucce CF01.': 'Insufficient data for the CF01 cartridge forecast.', 'In attesa di dati inverter sufficienti...': 'Waiting for sufficient inverter data...', 'Non ci sono abbastanza campioni validi per costruire il cruscotto motori.': 'There are not enough valid samples to build the motor dashboard.', 'Previsione Fouling Membrane RO': 'RO Membrane Fouling Forecast', 'Previsione Fouling Spaziatori RO': 'RO Spacer Fouling Forecast', 'Previsione TMP Ultrafiltrazione': 'Ultrafiltration TMP Forecast', 'Previsione Intasamento Filtri a Calza': 'Bag-filter Clogging Forecast', 'Previsione Intasamento Cartucce CF01': 'CF01 Cartridge Clogging Forecast', 'Sforzo Meccanico Relativo (A/Hz) - ': 'Relative Mechanical Load (A/Hz) — ', 'Salute Magnetica Statore (Cosφ) - ': 'Stator Magnetic Health (Cosφ) — ', 'Trend Cosφ - ': 'Cosφ Trend — ', 'Distribuzione e Stabilità: ': 'Distribution and Stability: ', 'Periodo A<br>(': 'Period A<br>(', 'Periodo B<br>(': 'Period B<br>(', 'Riepilogo mensile — ': 'Monthly summary — ', 'Le medie mensili sono calcolate su ': 'Monthly averages are calculated over ', ' trascorsi del mese': ' elapsed days of the month', ' di calendario': ' calendar days', 'La data iniziale deve precedere la data finale.': 'The start date must be earlier than the end date.', 'Periodo dal ': 'Period from ', ' al ': ' to ', ' giorni di calendario.': ' calendar days.', 'Seleziona una data iniziale e una data finale.': 'Select a start date and an end date.', 'Seleziona almeno una serie da visualizzare nel grafico.': 'Select at least one data series to display in the chart.', 'Volumi giornalieri — ': 'Daily volumes — ', 'Nessun dato di produzione PDF nel mese selezionato.': 'No PDF production data for the selected month.', 'Nessun dato ATM nel mese selezionato.': 'No ATM data for the selected month.', 'Errore nel caricamento dei dati Produzione/ATM: ': 'Error loading Production/ATM data: ', 'Nessun dato di produzione o ATM trovato per ': 'No production or ATM data found for ', 'Puoi mostrare Produzione, Vendite ATM e Concentrato singolarmente oppure in qualsiasi combinazione. Il concentrato non è selezionato di default.': 'You can display Production, ATM sales and Concentrate individually or in any combination. Concentrate is not selected by default.', 'Produzione: ': 'Production: ', 'Venduto: ': 'Sold: ', 'Concentrato: ': 'Concentrate: ', 'Trend Produzione - ': 'Production Trend — ', 'Distribuzione Erogazioni - ': 'Dispensing Distribution — ', 'Nessun dato ATM trovato per questo impianto.': 'No ATM data found for this plant.', 'Errore caricamento dati ATM: ': 'Error loading ATM data: ', ' (Sostit. ': ' (Replaced ', 'Media 24h': '24 h average', 'Permeabilità': 'Permeability', 'Reiezione': 'Rejection'}
@@ -2188,7 +2196,6 @@ def render_atm(impianto_scelto):
 def render_qualita_acqua(impianto_scelto):
     st.header("💧 Registro Qualità Acqua (Inserimenti Manuali)")
     
-    # Filtriamo per Kaktus, dato che al momento il modulo web è configurato lì
     if "Kaktus" not in impianto_scelto:
         st.info("Nessun dato di qualità dell'acqua trovato per questo impianto.")
         return
@@ -2205,7 +2212,7 @@ def render_qualita_acqua(impianto_scelto):
             st.info("Nessun dato di qualità dell'acqua trovato per questo impianto.")
             return
 
-        # 1. TABELLA RIASSUNTIVA GENERALE
+        # --- 1. TABELLA RIASSUNTIVA GENERALE ---
         summary_df = df_acqua[['data_rilievo', 'operatore', 'strumento']].copy()
         summary_df.columns = ['Data Rilievo', 'Operatore', 'Strumento']
         st.dataframe(summary_df, use_container_width=True, hide_index=True)
@@ -2213,16 +2220,14 @@ def render_qualita_acqua(impianto_scelto):
         st.markdown("---")
         st.subheader("Dettaglio Misurazione e Firma")
 
-        # 2. SELEZIONE DEL REPORT SPECIFICO
+        # --- 2. SELEZIONE DEL REPORT SPECIFICO ---
         opzioni = df_acqua.apply(lambda x: f"{x['data_rilievo']} - {x['operatore']} ({x['strumento']})", axis=1).tolist()
         scelta = st.selectbox("Seleziona un report per visualizzare i valori e la firma:", range(len(opzioni)), format_func=lambda i: opzioni[i])
 
         record = df_acqua.iloc[scelta]
-
         col1, col2 = st.columns([2, 1])
 
         with col1:
-            # Estrazione e formattazione del JSONB della tabella
             dati_tabella = record['dati_tabella']
             if dati_tabella:
                 parsed_data = []
@@ -2240,12 +2245,88 @@ def render_qualita_acqua(impianto_scelto):
                 st.warning("Nessun valore registrato in questa tabella.")
 
         with col2:
-            # Rendering dell'immagine Base64 nativo di Streamlit
             firma = record['firma_operatore']
             if firma and str(firma).startswith('data:image'):
                 st.image(firma, caption=f"Firma di {record['operatore']}", use_container_width=True)
             else:
                 st.info("Nessuna firma disponibile.")
+                
+        # --- 3. TREND TEMPORALE (GRAFICI) ---
+        st.markdown("---")
+        st.subheader("📈 Trend Temporale Qualità Acqua")
+
+        # "Srotolamento" dei dati dal formato JSONB a righe per il grafico
+        storico_dati = []
+        for _, row in df_acqua.iterrows():
+            data_val = row.get('data_rilievo')
+            dati_json = row.get('dati_tabella')
+            if pd.notna(data_val) and dati_json:
+                for punto, valori in dati_json.items():
+                    for param, val in valori.items():
+                        storico_dati.append({
+                            'Data': pd.to_datetime(data_val),
+                            'Punto': punto,
+                            'Parametro_Raw': param,
+                            'Valore': val
+                        })
+
+        df_storico = pd.DataFrame(storico_dati)
+
+        if not df_storico.empty:
+            # Mappatura dei parametri per la UI
+            mappa_parametri = {
+                'cl': 'Cloro (mg/l)',
+                'cond': 'Conduttività (us)',
+                'temp': 'Temperatura (°C)',
+                'ph': 'pH'
+            }
+            df_storico['Parametro'] = df_storico['Parametro_Raw'].map(mappa_parametri).fillna(df_storico['Parametro_Raw'])
+
+            col_param, col_punti = st.columns(2)
+            
+            with col_param:
+                param_selezionato = st.selectbox(
+                    "Seleziona il parametro da analizzare:", 
+                    list(mappa_parametri.values())
+                )
+            
+            with col_punti:
+                tutti_punti = sorted(df_storico['Punto'].unique())
+                # Di default mostriamo Tk11 (se esiste) o il primo della lista per evitare un grafico caotico in partenza
+                default_punto = ["Tk11"] if "Tk11" in tutti_punti else [tutti_punti[0]]
+                punti_selezionati = st.multiselect(
+                    "Seleziona i punti di campionamento:", 
+                    tutti_punti, 
+                    default=default_punto
+                )
+
+            df_plot = df_storico[(df_storico['Parametro'] == param_selezionato) & (df_storico['Punto'].isin(punti_selezionati))]
+
+            if not df_plot.empty:
+                df_plot = df_plot.sort_values('Data')
+                
+                # Plotly Express per il tracciamento
+                fig = px.line(
+                    df_plot, 
+                    x='Data', 
+                    y='Valore', 
+                    color='Punto', 
+                    markers=True,
+                    title=f"Andamento {param_selezionato} nel tempo"
+                )
+                
+                fig.update_layout(
+                    xaxis_title="Data",
+                    yaxis_title=param_selezionato,
+                    hovermode="x unified",
+                    margin=dict(l=20, r=20, t=40, b=20)
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Nessun dato disponibile per questa combinazione.")
+        else:
+            st.info("Non ci sono abbastanza dati storici per generare un grafico.")
                 
     except Exception as e:
         st.error(f"Errore durante il caricamento dei dati da Supabase: {e}")
