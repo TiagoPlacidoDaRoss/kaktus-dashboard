@@ -57,7 +57,9 @@ _EXACT_TRANSLATIONS.update({
     "Conduttività (us)": "Conductivity (us)",
     "Temperatura (°C)": "Temperature (°C)",
     "Nessun dato disponibile per questa combinazione.": "No data available for this combination.",
-    "Non ci sono abbastanza dati storici per generare un grafico.": "Not enough historical data to generate a chart."
+    "Non ci sono abbastanza dati storici per generare un grafico.": "Not enough historical data to generate a chart.",
+    "Qualità Acqua": "Water Quality",
+    "Andamento Qualità Acqua (Manuale)": "Water Quality Trends (Manual)"
 })
 
 _PHRASE_TRANSLATIONS = {'Sistema di Monitoraggio - ': 'Monitoring System — ', 'Origine Dati: ': 'Data source: ', 'Nessun dato registrato per ': 'No data recorded for ', '. In attesa dei log...': '. Waiting for logs...', 'Nessun dato PDF trovato per ': 'No PDF data found for ', 'Errore caricamento dati PDF: ': 'Error loading PDF data: ', 'Nessun misuratore di portata FIT disponibile nei dati.': 'No FIT flow meter is available in the data.', '#### Portate istantanee — tutti i FIT': '#### Instantaneous flow rates — all FIT meters', 'Fouling: Indice di Permeabilità ASTM (Media Mobile)': 'Fouling: ASTM Permeability Index (Moving Average)', 'Dinamica Pressioni Idrauliche': 'Hydraulic Pressure Dynamics', 'Dati Cosφ non disponibili o insufficienti per ': 'Cosφ data are unavailable or insufficient for ', "Nessun dato numerico valido nell'intervallo selezionato.": 'No valid numerical data in the selected range.', 'Stimato in: ': 'Estimated in: ', ' giorni': ' days', 'Dati insufficienti per la previsione delle membrane RO.': 'Insufficient data for the RO membrane forecast.', 'Lavaggio chimico (CIP) tra **': 'Chemical cleaning (CIP) in **', 'Dati insufficienti per la previsione degli spaziatori RO.': 'Insufficient data for the RO spacer forecast.', 'Lavaggio (CIP) stimato tra **': 'Cleaning (CIP) estimated in **', 'In attesa di dati UF sufficienti...': 'Waiting for sufficient UF data...', 'Dati insufficienti per la previsione dei filtri a calza.': 'Insufficient data for the bag-filter forecast.', 'Dati insufficienti per la previsione delle cartucce CF01.': 'Insufficient data for the CF01 cartridge forecast.', 'In attesa di dati inverter sufficienti...': 'Waiting for sufficient inverter data...', 'Non ci sono abbastanza campioni validi per costruire il cruscotto motori.': 'There are not enough valid samples to build the motor dashboard.', 'Previsione Fouling Membrane RO': 'RO Membrane Fouling Forecast', 'Previsione Fouling Spaziatori RO': 'RO Spacer Fouling Forecast', 'Previsione TMP Ultrafiltrazione': 'Ultrafiltration TMP Forecast', 'Previsione Intasamento Filtri a Calza': 'Bag-filter Clogging Forecast', 'Previsione Intasamento Cartucce CF01': 'CF01 Cartridge Clogging Forecast', 'Sforzo Meccanico Relativo (A/Hz) - ': 'Relative Mechanical Load (A/Hz) — ', 'Salute Magnetica Statore (Cosφ) - ': 'Stator Magnetic Health (Cosφ) — ', 'Trend Cosφ - ': 'Cosφ Trend — ', 'Distribuzione e Stabilità: ': 'Distribution and Stability: ', 'Periodo A<br>(': 'Period A<br>(', 'Periodo B<br>(': 'Period B<br>(', 'Riepilogo mensile — ': 'Monthly summary — ', 'Le medie mensili sono calcolate su ': 'Monthly averages are calculated over ', ' trascorsi del mese': ' elapsed days of the month', ' di calendario': ' calendar days', 'La data iniziale deve precedere la data finale.': 'The start date must be earlier than the end date.', 'Periodo dal ': 'Period from ', ' al ': ' to ', ' giorni di calendario.': ' calendar days.', 'Seleziona una data iniziale e una data finale.': 'Select a start date and an end date.', 'Seleziona almeno una serie da visualizzare nel grafico.': 'Select at least one data series to display in the chart.', 'Volumi giornalieri — ': 'Daily volumes — ', 'Nessun dato di produzione PDF nel mese selezionato.': 'No PDF production data for the selected month.', 'Nessun dato ATM nel mese selezionato.': 'No ATM data for the selected month.', 'Errore nel caricamento dei dati Produzione/ATM: ': 'Error loading Production/ATM data: ', 'Nessun dato di produzione o ATM trovato per ': 'No production or ATM data found for ', 'Puoi mostrare Produzione, Vendite ATM e Concentrato singolarmente oppure in qualsiasi combinazione. Il concentrato non è selezionato di default.': 'You can display Production, ATM sales and Concentrate individually or in any combination. Concentrate is not selected by default.', 'Produzione: ': 'Production: ', 'Venduto: ': 'Sold: ', 'Concentrato: ': 'Concentrate: ', 'Trend Produzione - ': 'Production Trend — ', 'Distribuzione Erogazioni - ': 'Dispensing Distribution — ', 'Nessun dato ATM trovato per questo impianto.': 'No ATM data found for this plant.', 'Errore caricamento dati ATM: ': 'Error loading ATM data: ', ' (Sostit. ': ' (Replaced ', 'Media 24h': '24 h average', 'Permeabilità': 'Permeability', 'Reiezione': 'Rejection'}
@@ -378,6 +380,33 @@ def normalizza_dataframe(df):
     return out
 
 @st.cache_data(ttl=300) 
+def load_water_quality_data(impianto_scelto):
+    if "Kaktus" not in impianto_scelto:
+        return pd.DataFrame()
+    try:
+        from supabase import create_client
+        supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+        res = supabase.table("misurazioni_kaktus").select("*").execute()
+        df = pd.DataFrame(res.data)
+        if df.empty: return df
+        
+        storico_dati = []
+        for _, row in df.iterrows():
+            data_val = row.get('data_rilievo')
+            dati_json = row.get('dati_tabella')
+            if pd.notna(data_val) and dati_json:
+                for punto, valori in dati_json.items():
+                    for param, val in valori.items():
+                        storico_dati.append({
+                            '_report_date': pd.to_datetime(data_val),
+                            'Punto': str(punto),
+                            'Parametro': str(param),
+                            'Valore': float(val)
+                        })
+        return pd.DataFrame(storico_dati)
+    except Exception:
+        return pd.DataFrame()
+
 def load_data(impianto_selezionato):
     config = CONFIG_IMPIANTI[impianto_selezionato]
     try:
@@ -1689,7 +1718,45 @@ def _report_chart_motors(df_nas, config_attuale, metric):
     fig.tight_layout()
     return _report_fig_to_png(fig)
 
-
+def _report_chart_water_quality(df, param, title_it, title_en, ylabel):
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    
+    df_param = df[df['Parametro'] == param].copy()
+    if df_param.empty:
+        return None
+        
+    df_param['date'] = df_param['_report_date'].dt.normalize()
+    
+    fig, ax = plt.subplots(figsize=(7.2, 3.2))
+    punti = sorted(df_param['Punto'].unique())
+    
+    plotted = 0
+    for p in punti:
+        df_p = df_param[df_param['Punto'] == p].groupby('date', as_index=False)['Valore'].mean()
+        if not df_p.empty:
+            ax.plot(df_p['date'], df_p['Valore'], marker='o', markersize=2.5, linewidth=1.2, label=p)
+            plotted += 1
+            
+    if plotted == 0:
+        plt.close(fig)
+        return None
+        
+    ax.set_title(_r(title_it, title_en))
+    ax.set_ylabel(ylabel)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
+    ax.tick_params(axis="x", rotation=45, labelsize=7)
+    ax.grid(alpha=0.25)
+    
+    # Se ci sono molti punti di campionamento, spostiamo la legenda in basso
+    if plotted <= 8:
+        ax.legend(fontsize=6, ncol=4, loc="best")
+    else:
+        ax.legend(fontsize=5, ncol=6, loc="upper center", bbox_to_anchor=(0.5, -0.2))
+        fig.subplots_adjust(bottom=0.35)
+        
+    fig.tight_layout()
+    return _report_fig_to_png(fig)
 
 def verifica_dipendenze_report():
     """Restituisce l'elenco delle dipendenze mancanti per i report PDF."""
@@ -1745,6 +1812,8 @@ def genera_report_pdf(impianto_scelto, config_attuale, start_date, end_date, df_
     ro_period = _report_filter_period(ro_all, start_date, end_date)
     uf_period = _report_filter_period(df_uf, start_date, end_date)
     nas_period = _report_filter_period(df_nas, start_date, end_date)
+    df_wq_all = load_water_quality_data(impianto_scelto)
+    wq_period = _report_filter_period(df_wq_all, start_date, end_date, date_col="_report_date") if not df_wq_all.empty else pd.DataFrame()
 
     days = max(1, (pd.Timestamp(end_date) - pd.Timestamp(start_date)).days + 1)
     def total(col):
@@ -1990,6 +2059,24 @@ def genera_report_pdf(impianto_scelto, config_attuale, start_date, end_date, df_
                 story.append(Image(chart, width=18.1 * cm, height=8.0 * cm))
                 story.append(Spacer(1, 0.2 * cm))
 
+    # Sezione: Qualità Acqua Manuale
+    if "Qualità Acqua" in selected_sections and not wq_period.empty:
+        story.append(PageBreak())
+        story.append(Paragraph(_r("Andamento Qualità Acqua (Manuale)", "Water Quality Trends (Manual)"), styles["ReportH1"]))
+        
+        param_configs = [
+            ('cl', "Trend Cloro Residuo", "Chlorine Trend", "Cloro (mg/l)"),
+            ('cond', "Trend Conduttività", "Conductivity Trend", "Conduttività (µS/cm)"),
+            ('temp', "Trend Temperatura", "Temperature Trend", "Temperatura (°C)"),
+            ('ph', "Trend pH", "pH Trend", "pH")
+        ]
+        
+        for param, title_it, title_en, ylabel in param_configs:
+            chart = _report_chart_water_quality(wq_period, param, title_it, title_en, ylabel)
+            if chart is not None:
+                story.append(Image(chart, width=18.1 * cm, height=8.0 * cm))
+                story.append(Spacer(1, 0.2 * cm))
+
     if "Tabella giornaliera" in selected_sections:
         story.append(PageBreak())
         story.append(Paragraph(_r("Dettaglio giornaliero", "Daily detail"), styles["ReportH1"]))
@@ -2103,6 +2190,10 @@ def render_report(impianto_scelto, config_attuale, df_ro_raw, df_uf, df_nas):
     if config_attuale.get("has_uf") or config_attuale.get("has_bag_filters"):
         available_sections.append("UF e filtri")
     available_sections.append("Motori e pompe")
+
+    if "Kaktus" in impianto_scelto:
+        available_sections.append("Qualità Acqua")
+
     available_sections.append("Tabella giornaliera")
     default_sections = [section for section in ["Produzione e vendite", "Performance RO", "UF e filtri", "Motori e pompe"] if section in available_sections]
     selected_sections = st.multiselect(
