@@ -2284,143 +2284,195 @@ def render_atm(impianto_scelto):
     except Exception as e:
         st.error(f"Errore caricamento dati ATM: {e}")
 
-def render_qualita_acqua(impianto_scelto):
-    st.header("💧 Registro Qualità Acqua (Inserimenti Manuali)")
-    
-    if "Kaktus" not in impianto_scelto:
-        st.info("Nessun dato di qualità dell'acqua trovato per questo impianto.")
-        return
+def valuta_parametro_who(valore, parametro):
+    """Valuta il parametro chimico-fisico rispetto alle linee guida WHO per l'acqua potabile."""
+    if pd.isna(valore):
+        return "⚪", "N/D", "normal"
+        
+    if parametro == "pH":
+        if 6.5 <= valore <= 8.5: return "🟢", "Ottimale", "normal"
+        elif 6.0 <= valore < 6.5 or 8.5 < valore <= 9.0: return "🟡", "Attenzione", "off"
+        else: return "🔴", "Critico", "inverse"
+        
+    elif parametro == "Cloro":
+        if 0.2 <= valore <= 1.0: return "🟢", "Ottimale", "normal"
+        elif 0.1 <= valore < 0.2 or 1.0 < valore <= 2.0: return "🟡", "Attenzione", "off"
+        else: return "🔴", "Critico", "inverse"
+        
+    elif parametro == "Conducibilità":
+        if valore <= 500: return "🟢", "Ottimale", "normal"
+        elif 500 < valore <= 1000: return "🟡", "Attenzione", "off"
+        else: return "🔴", "Critico", "inverse"
+        
+    return "⚪", "", "normal"
 
+def render_qualita_acqua(impianto_scelto):
+    st.header("💧 Qualità Acqua e Monitoraggio WHO (Manuale)")
+    
+    # 1. GESTIONE MULTI-IMPIANTO FUTURA
+    # Determina il nome della tabella dinamicamente in base all'impianto
+    nome_impianto = "kaktus" if "Kaktus" in impianto_scelto else "pingwe"
+    tabella_db = f"misurazioni_{nome_impianto}"
+    
     try:
         from supabase import create_client
         supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-        
-        # Recupera i dati ordinandoli dal più recente
-        res = supabase.table("misurazioni_kaktus").select("*").order("data_rilievo", desc=True).execute()
+        res = supabase.table(tabella_db).select("*").order("data_rilievo", desc=True).execute()
         df_acqua = pd.DataFrame(res.data)
         
-        if df_acqua.empty:
-            st.info("Nessun dato di qualità dell'acqua trovato per questo impianto.")
-            return
-
-        # --- 1. TABELLA RIASSUNTIVA GENERALE ---
-        summary_df = df_acqua[['data_rilievo', 'operatore', 'strumento']].copy()
-        summary_df.columns = ['Data Rilievo', 'Operatore', 'Strumento']
-        st.dataframe(summary_df, use_container_width=True, hide_index=True)
-
-        st.markdown("---")
-        st.subheader("Dettaglio Misurazione e Firma")
-
-        # --- 2. SELEZIONE DEL REPORT SPECIFICO ---
-        opzioni = df_acqua.apply(lambda x: f"{x['data_rilievo']} - {x['operatore']} ({x['strumento']})", axis=1).tolist()
-        scelta = st.selectbox("Seleziona un report per visualizzare i valori e la firma:", range(len(opzioni)), format_func=lambda i: opzioni[i])
-
-        record = df_acqua.iloc[scelta]
-        col1, col2 = st.columns([2, 1])
-
-        with col1:
-            dati_tabella = record['dati_tabella']
-            if dati_tabella:
-                parsed_data = []
-                for punto, valori in dati_tabella.items():
-                    riga = {"Punto": punto}
-                    if 'cl' in valori: riga['Cl. (mg/l)'] = valori['cl']
-                    if 'cond' in valori: riga['Cond. (us)'] = valori['cond']
-                    if 'temp' in valori: riga['°C'] = valori['temp']
-                    if 'ph' in valori: riga['PH'] = valori['ph']
-                    parsed_data.append(riga)
-                
-                df_dettaglio = pd.DataFrame(parsed_data)
-                st.dataframe(df_dettaglio, use_container_width=True, hide_index=True)
-            else:
-                st.warning("Nessun valore registrato in questa tabella.")
-
-        with col2:
-            firma = record['firma_operatore']
-            if firma and str(firma).startswith('data:image'):
-                st.image(firma, caption=f"Firma di {record['operatore']}", use_container_width=True)
-            else:
-                st.info("Nessuna firma disponibile.")
-                
-        # --- 3. TREND TEMPORALE (GRAFICI) ---
-        st.markdown("---")
-        st.subheader("📈 Trend Temporale Qualità Acqua")
-
-        # "Srotolamento" dei dati dal formato JSONB a righe per il grafico
-        storico_dati = []
-        for _, row in df_acqua.iterrows():
-            data_val = row.get('data_rilievo')
-            dati_json = row.get('dati_tabella')
-            if pd.notna(data_val) and dati_json:
-                for punto, valori in dati_json.items():
-                    for param, val in valori.items():
-                        storico_dati.append({
-                            'Data': pd.to_datetime(data_val),
-                            'Punto': punto,
-                            'Parametro_Raw': param,
-                            'Valore': val
-                        })
-
-        df_storico = pd.DataFrame(storico_dati)
-
-        if not df_storico.empty:
-            # Mappatura dei parametri per la UI
-            mappa_parametri = {
-                'cl': 'Cloro (mg/l)',
-                'cond': 'Conduttività (us)',
-                'temp': 'Temperatura (°C)',
-                'ph': 'pH'
-            }
-            df_storico['Parametro'] = df_storico['Parametro_Raw'].map(mappa_parametri).fillna(df_storico['Parametro_Raw'])
-
-            col_param, col_punti = st.columns(2)
-            
-            with col_param:
-                param_selezionato = st.selectbox(
-                    "Seleziona il parametro da analizzare:", 
-                    list(mappa_parametri.values())
-                )
-            
-            with col_punti:
-                tutti_punti = sorted(df_storico['Punto'].unique())
-                # Di default mostriamo Tk11 (se esiste) o il primo della lista per evitare un grafico caotico in partenza
-                default_punto = ["Tk11"] if "Tk11" in tutti_punti else [tutti_punti[0]]
-                punti_selezionati = st.multiselect(
-                    "Seleziona i punti di campionamento:", 
-                    tutti_punti, 
-                    default=default_punto
-                )
-
-            df_plot = df_storico[(df_storico['Parametro'] == param_selezionato) & (df_storico['Punto'].isin(punti_selezionati))]
-
-            if not df_plot.empty:
-                df_plot = df_plot.sort_values('Data')
-                
-                # Plotly Express per il tracciamento
-                fig = px.line(
-                    df_plot, 
-                    x='Data', 
-                    y='Valore', 
-                    color='Punto', 
-                    markers=True,
-                    title=f"Andamento {param_selezionato} nel tempo"
-                )
-                
-                fig.update_layout(
-                    xaxis_title="Data",
-                    yaxis_title=param_selezionato,
-                    hovermode="x unified",
-                    margin=dict(l=20, r=20, t=40, b=20)
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info("Nessun dato disponibile per questa combinazione.")
-        else:
-            st.info("Non ci sono abbastanza dati storici per generare un grafico.")
-                
     except Exception as e:
+        # Se la tabella per Pingwe non esiste ancora, cattura l'errore elegantemente
+        if "pingwe" in nome_impianto:
+            st.info("Il modulo Qualità Acqua non è ancora stato attivato o configurato nel database per questo impianto.")
+            return
         st.error(f"Errore durante il caricamento dei dati da Supabase: {e}")
+        return
+
+    if df_acqua.empty:
+        st.info(f"Nessun dato di qualità dell'acqua trovato per l'impianto {impianto_scelto}.")
+        return
+
+    # Srotolamento dei dati dal formato JSONB a righe tabellari per l'analisi
+    storico_dati = []
+    for _, row in df_acqua.iterrows():
+        data_val = row.get('data_rilievo')
+        dati_json = row.get('dati_tabella')
+        if pd.notna(data_val) and dati_json:
+            for punto, valori in dati_json.items():
+                for param, val in valori.items():
+                    storico_dati.append({
+                        'Data': pd.to_datetime(data_val),
+                        'Punto': punto,
+                        'Parametro_Raw': param,
+                        'Valore': val
+                    })
+
+    df_storico = pd.DataFrame(storico_dati)
+    if df_storico.empty:
+        st.warning("I report caricati non contengono dati numerici validi.")
+        return
+
+    # Mappatura dei parametri per la UI e le funzioni di valutazione
+    mappa_parametri = {
+        'cl': 'Cloro',
+        'cond': 'Conducibilità',
+        'temp': 'Temperatura',
+        'ph': 'pH'
+    }
+    df_storico['Parametro'] = df_storico['Parametro_Raw'].map(mappa_parametri).fillna(df_storico['Parametro_Raw'])
+
+
+    # ==========================================
+    # 1. CRUSCOTTO WHO (AT-A-GLANCE)
+    # ==========================================
+    st.subheader("Cruscotto Attuale (Linee Guida WHO)")
+    
+    # Estraiamo l'ultima data di campionamento disponibile
+    ultima_data = df_storico['Data'].max()
+    df_ultimo = df_storico[df_storico['Data'] == ultima_data]
+    
+    # Calcoliamo la media dei valori se ci sono stati più punti di prelievo lo stesso giorno
+    valori_attuali = df_ultimo.groupby('Parametro')['Valore'].mean().to_dict()
+    
+    c1, c2, c3 = st.columns(3)
+    
+    val_ph = valori_attuali.get('pH', np.nan)
+    icona_ph, stato_ph, delta_ph = valuta_parametro_who(val_ph, "pH")
+    with c1: 
+        st.metric(label=f"pH Medio {icona_ph}", value=f"{val_ph:.2f}" if pd.notna(val_ph) else "N/D", delta=stato_ph, delta_color=delta_ph)
+        
+    val_cl = valori_attuali.get('Cloro', np.nan)
+    icona_cl, stato_cl, delta_cl = valuta_parametro_who(val_cl, "Cloro")
+    with c2: 
+        st.metric(label=f"Cloro Residuo {icona_cl}", value=f"{val_cl:.2f} mg/L" if pd.notna(val_cl) else "N/D", delta=stato_cl, delta_color=delta_cl)
+        
+    val_cond = valori_attuali.get('Conducibilità', np.nan)
+    icona_cond, stato_cond, delta_cond = valuta_parametro_who(val_cond, "Conducibilità")
+    with c3: 
+        st.metric(label=f"Conducibilità Media {icona_cond}", value=f"{val_cond:.0f} µS/cm" if pd.notna(val_cond) else "N/D", delta=stato_cond, delta_color=delta_cond)
+        
+    st.caption(f"Valori riferiti all'ultimo campionamento del: **{ultima_data.strftime('%d/%m/%Y')}** (Valore medio tra i punti di prelievo della giornata)")
+    st.markdown("---")
+
+
+    # ==========================================
+    # 2. GRAFICI DI TREND CON FASCE WHO
+    # ==========================================
+    st.subheader("📈 Trend Storico e Limiti WHO")
+    
+    col_param, col_punti = st.columns(2)
+    with col_param:
+        param_selezionato = st.selectbox("Seleziona il parametro da analizzare:", ['pH', 'Cloro', 'Conducibilità', 'Temperatura'])
+    with col_punti:
+        tutti_punti = sorted(df_storico['Punto'].unique())
+        default_punto = ["Tk11"] if "Tk11" in tutti_punti else [tutti_punti[0]]
+        punti_selezionati = st.multiselect("Seleziona i punti di campionamento:", tutti_punti, default=default_punto)
+
+    df_plot = df_storico[(df_storico['Parametro'] == param_selezionato) & (df_storico['Punto'].isin(punti_selezionati))]
+
+    if not df_plot.empty:
+        df_plot = df_plot.sort_values('Data')
+        fig = px.line(df_plot, x='Data', y='Valore', color='Punto', markers=True, title=f"Andamento {param_selezionato} rispetto ai limiti WHO")
+        
+        # Disegno delle fasce di tolleranza WHO dinamiche
+        if param_selezionato == 'pH':
+            fig.add_hrect(y0=6.5, y1=8.5, line_width=0, fillcolor="green", opacity=0.1, annotation_text="Ottimale")
+            fig.add_hline(y=6.0, line_dash="dash", line_color="red", annotation_text="Critico Minimo")
+            fig.add_hline(y=9.0, line_dash="dash", line_color="red", annotation_text="Critico Massimo")
+            fig.update_yaxes(range=[5.0, 10.0])
+            
+        elif param_selezionato == 'Cloro':
+            fig.add_hrect(y0=0.2, y1=1.0, line_width=0, fillcolor="green", opacity=0.1, annotation_text="Ottimale")
+            fig.add_hline(y=0.1, line_dash="dash", line_color="orange", annotation_text="Sottodosaggio")
+            fig.add_hline(y=2.0, line_dash="dash", line_color="red", annotation_text="Sovradosaggio")
+            
+        elif param_selezionato == 'Conducibilità':
+            fig.add_hrect(y0=0, y1=500, line_width=0, fillcolor="green", opacity=0.1, annotation_text="Ottimale")
+            fig.add_hrect(y0=500, y1=1000, line_width=0, fillcolor="orange", opacity=0.1, annotation_text="Accettabile")
+            fig.add_hline(y=1000, line_dash="dash", line_color="red", annotation_text="Limite WHO")
+
+        fig.update_layout(xaxis_title="Data", yaxis_title=param_selezionato, hovermode="x unified", margin=dict(l=20, r=20, t=40, b=20))
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Nessun dato disponibile per questa combinazione di parametri e punti di prelievo.")
+
+    st.markdown("---")
+
+
+    # ==========================================
+    # 3. DETTAGLIO REPORT MANUALE (ESISTENTE)
+    # ==========================================
+    st.subheader("Dettaglio Misurazione e Firma Operatore")
+    
+    opzioni = df_acqua.apply(lambda x: f"{x['data_rilievo']} - {x['operatore']} ({x['strumento']})", axis=1).tolist()
+    scelta = st.selectbox("Seleziona un inserimento manuale storico:", range(len(opzioni)), format_func=lambda i: opzioni[i])
+
+    record = df_acqua.iloc[scelta]
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        dati_tabella = record['dati_tabella']
+        if dati_tabella:
+            parsed_data = []
+            for punto, valori in dati_tabella.items():
+                riga = {"Punto": punto}
+                if 'cl' in valori: riga['Cl. (mg/l)'] = valori['cl']
+                if 'cond' in valori: riga['Cond. (us)'] = valori['cond']
+                if 'temp' in valori: riga['°C'] = valori['temp']
+                if 'ph' in valori: riga['PH'] = valori['ph']
+                parsed_data.append(riga)
+            
+            df_dettaglio = pd.DataFrame(parsed_data)
+            st.dataframe(df_dettaglio, use_container_width=True, hide_index=True)
+        else:
+            st.warning("Nessun valore registrato in questa tabella.")
+
+    with col2:
+        firma = record['firma_operatore']
+        if firma and str(firma).startswith('data:image'):
+            st.image(firma, caption=f"Firma di {record['operatore']}", use_container_width=True)
+        else:
+            st.info("Nessuna firma disponibile.")
 
 # =========================================================
 # MAIN DASHBOARD ENTRY POINT
