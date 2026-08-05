@@ -21,6 +21,8 @@ _EXACT_TRANSLATIONS = {'N/D': 'N/A', 'Gennaio': 'January', 'Febbraio': 'February
 
 
 _EXACT_TRANSLATIONS.update({
+    "fino a ieri": "up to yesterday",
+    "Non sono ancora disponibili giorni completi nel mese corrente.": "No complete days are available yet in the current month.",
     "📄 Report": "📄 Reports",
     "📄 Generazione Report": "📄 Report Generation",
     "Periodo del report:": "Report period:",
@@ -1132,15 +1134,29 @@ def render_produzione_atm(impianto_scelto):
     periodo = pd.Period(mese_scelto, freq="M")
     inizio_mese = periodo.start_time.normalize()
     fine_mese = periodo.end_time.normalize()
-    oggi = pd.Timestamp.today().normalize()
+    # Usa il fuso orario italiano per evitare differenze di data
+    # quando l'app Streamlit è ospitata su un server in UTC.
+    oggi = (
+        pd.Timestamp.now(tz="Europe/Rome")
+        .tz_localize(None)
+        .normalize()
+    )
+    mese_corrente = periodo == oggi.to_period("M")
 
-    # Per il mese corrente non vengono conteggiati giorni futuri.
+    # I dati giornalieri ricevuti oggi si riferiscono sempre a ieri.
+    # Per il mese corrente il periodo utile termina quindi a ieri:
+    # il 5 del mese la media viene calcolata su 4 giorni.
     fine_periodo_media = (
-        min(fine_mese, oggi)
-        if periodo == oggi.to_period("M")
+        min(fine_mese, oggi - pd.Timedelta(days=1))
+        if mese_corrente
         else fine_mese
     )
-    giorni_periodo = max(1, (fine_periodo_media - inizio_mese).days + 1)
+
+    giorni_periodo = (
+        (fine_periodo_media - inizio_mese).days + 1
+        if fine_periodo_media >= inizio_mese
+        else 0
+    )
 
     pdf_mese = (
         df_pdf[df_pdf["data_rif"].dt.to_period("M") == periodo].copy()
@@ -1169,17 +1185,17 @@ def render_produzione_atm(impianto_scelto):
 
     media_prod = (
         totale_prodotto / giorni_periodo
-        if pd.notna(totale_prodotto)
+        if giorni_periodo > 0 and pd.notna(totale_prodotto)
         else np.nan
     )
     media_concentrato = (
         totale_concentrato / giorni_periodo
-        if pd.notna(totale_concentrato)
+        if giorni_periodo > 0 and pd.notna(totale_concentrato)
         else np.nan
     )
     media_atm_m3 = (
         totale_atm_m3 / giorni_periodo
-        if pd.notna(totale_atm_m3)
+        if giorni_periodo > 0 and pd.notna(totale_atm_m3)
         else np.nan
     )
 
@@ -1204,10 +1220,21 @@ def render_produzione_atm(impianto_scelto):
         formatta_intero(media_concentrato, "m³/giorno")
     )
 
-    st.caption(
-        f"Le medie mensili sono calcolate su {giorni_periodo} giorni "
-        f"{'trascorsi del mese' if periodo == oggi.to_period('M') else 'di calendario'}."
-    )
+    if mese_corrente:
+        if giorni_periodo > 0:
+            st.caption(
+                f"Le medie mensili sono calcolate su {giorni_periodo} "
+                "giorni trascorsi del mese, fino a ieri."
+            )
+        else:
+            st.caption(
+                "Non sono ancora disponibili giorni completi nel mese corrente."
+            )
+    else:
+        st.caption(
+            f"Le medie mensili sono calcolate su {giorni_periodo} "
+            "giorni di calendario."
+        )
 
     # ---------------------------------------------------------
     # Medie di un intervallo personalizzato
