@@ -687,6 +687,27 @@ def _relative_slope_per_day(df, column, reference, lookback_days=14):
     return float(slope / abs(reference) * 100.0) if np.isfinite(slope) else 0.0
 
 
+def _recent_threshold_persistence(df, values, threshold, lookback_hours=24, min_fraction=0.75):
+    """Verifica che un segnale superi la soglia in modo persistente, non su un solo campione."""
+    dates = pd.to_datetime(df.get('date_str'), errors='coerce')
+    numeric_values = pd.to_numeric(values, errors='coerce')
+    valid = dates.notna() & numeric_values.notna() & np.isfinite(numeric_values)
+    if valid.sum() < 6:
+        return False, np.nan, 0.0
+
+    recent = pd.DataFrame({'date': dates[valid], 'value': numeric_values[valid]}).sort_values('date')
+    cutoff = recent['date'].max() - pd.Timedelta(hours=lookback_hours)
+    recent = recent[recent['date'] >= cutoff]
+    if len(recent) < 6:
+        return False, np.nan, 0.0
+
+    span_hours = (recent['date'].max() - recent['date'].min()).total_seconds() / 3600.0
+    median_value = float(recent['value'].median())
+    fraction_above = float((recent['value'] >= threshold).mean())
+    persistent = span_hours >= lookback_hours * 0.75 and fraction_above >= min_fraction
+    return persistent, median_value, fraction_above
+
+
 def diagnostica_cip_ro(df_ro, baseline_ro, latest_ro, osservazioni=None):
     """Diagnosi euristica: i punteggi sono compatibilità relative, non probabilità statistiche."""
     osservazioni = set(osservazioni or [])
@@ -711,6 +732,20 @@ def diagnostica_cip_ro(df_ro, baseline_ro, latest_ro, osservazioni=None):
         (curr_salt_passage - base_salt_passage) / base_salt_passage * 100.0
         if np.isfinite(base_salt_passage) and np.isfinite(curr_salt_passage)
         else 0.0
+    )
+    sr_source = df_ro['sr_norm'] if 'sr_norm' in df_ro.columns else pd.Series(np.nan, index=df_ro.index)
+    sr_series = pd.to_numeric(sr_source, errors='coerce')
+    salt_passage_series = (100.0 - sr_series).clip(lower=0.0)
+    salt_passage_change_series = (
+        (salt_passage_series - base_salt_passage) / base_salt_passage * 100.0
+        if np.isfinite(base_salt_passage) and base_salt_passage > 0
+        else pd.Series(np.nan, index=df_ro.index, dtype=float)
+    )
+    salt_persistent_5, salt_recent_median_pct, salt_recent_fraction = _recent_threshold_persistence(
+        df_ro, salt_passage_change_series, 5.0
+    )
+    salt_persistent_10, _, _ = _recent_threshold_persistence(
+        df_ro, salt_passage_change_series, 10.0
     )
 
     perm_slope_pct_day = _relative_slope_per_day(df_ro, 'perm_norm_smooth', base_perm)
@@ -770,14 +805,21 @@ def diagnostica_cip_ro(df_ro, baseline_ro, latest_ro, osservazioni=None):
     valid_dates = pd.to_datetime(df_ro.get('date_str'), errors='coerce').dropna()
     data_span_days = (valid_dates.max() - valid_dates.min()).total_seconds() / 86400.0 if len(valid_dates) >= 2 else 0.0
     data_quality = 0.45 * _clip01(len(df_ro) / 168.0) + 0.30 * _clip01(data_span_days / 7.0) + 0.25 * (valid_signals / 3.0)
+    data_quality_pct = float(np.clip(data_quality * 100.0, 0.0, 100.0))
     separation = _clip01((ranked[0][1] - ranked[1][1]) / 40.0) if len(ranked) > 1 else 0.0
     confidence_pct = 25.0 + 28.0 * data_quality + 18.0 * separation + min(12.0, 4.0 * len(osservazioni))
     if ranked[0][0] != 'stable' and not osservazioni:
         confidence_pct = min(confidence_pct, 62.0)
     confidence_pct = float(np.clip(confidence_pct, 20.0, 78.0))
 
-    cip_due = perm_loss_pct >= 15.0 or dp_rise_pct >= 15.0 or salt_passage_change_pct >= 10.0
-    cip_early_warning = perm_loss_pct >= 10.0 or dp_rise_pct >= 10.0 or salt_passage_change_pct >= 5.0
+    # Una piccola variazione della reiezione può produrre una variazione relativa
+    # elevata del passaggio salino. Da sola genera quindi solo monitoraggio. Per
+    # il preallarme richiediamo persistenza e un secondo riscontro di processo.
+    salt_monitoring = salt_passage_change_pct >= 5.0 or salt_recent_median_pct >= 5.0
+    process_corroboration = perm_loss_pct >= 5.0 or dp_rise_pct >= 5.0
+    salt_warning_qualified = salt_persistent_5 and (process_corroboration or sr_drop_pp >= 0.5)
+    cip_due = perm_loss_pct >= 15.0 or dp_rise_pct >= 15.0 or salt_persistent_10
+    cip_early_warning = perm_loss_pct >= 10.0 or dp_rise_pct >= 10.0 or salt_warning_qualified
     alkaline_probability = probabilities['biofilm'] + probabilities['organic_colloidal']
     acid_probability = probabilities['mineral_scale'] + probabilities['metal_inorganic']
     integrity_probability = probabilities['integrity_anomaly']
@@ -787,7 +829,7 @@ def diagnostica_cip_ro(df_ro, baseline_ro, latest_ro, osservazioni=None):
         cleaning_code = 'insufficient_data'
     elif integrity_probability >= 35.0 and ranked[0][0] == 'integrity_anomaly':
         cleaning_code = 'integrity_check'
-    elif not cip_early_warning and probabilities['stable'] >= 45.0:
+    elif not cip_early_warning:
         cleaning_code = 'none'
     elif not cip_due:
         cleaning_code = 'verify_then_plan'
@@ -806,6 +848,8 @@ def diagnostica_cip_ro(df_ro, baseline_ro, latest_ro, osservazioni=None):
         status_code = 'cip_due'
     elif cip_early_warning:
         status_code = 'warning'
+    elif salt_monitoring:
+        status_code = 'monitor'
     else:
         status_code = 'normal'
 
@@ -816,12 +860,19 @@ def diagnostica_cip_ro(df_ro, baseline_ro, latest_ro, osservazioni=None):
         'dp_rise_pct': dp_rise_pct,
         'sr_drop_pp': sr_drop_pp,
         'salt_passage_change_pct': salt_passage_change_pct,
+        'salt_recent_median_pct': salt_recent_median_pct,
+        'salt_recent_fraction': salt_recent_fraction,
+        'salt_persistent_5': salt_persistent_5,
+        'salt_persistent_10': salt_persistent_10,
+        'salt_monitoring': salt_monitoring,
+        'salt_warning_qualified': salt_warning_qualified,
         'perm_slope_pct_day': perm_slope_pct_day,
         'dp_slope_pct_day': dp_slope_pct_day,
         'severity': severity,
         'probabilities': probabilities,
         'ranked': ranked,
         'confidence_pct': confidence_pct,
+        'data_quality_pct': data_quality_pct,
         'cleaning_code': cleaning_code,
         'status_code': status_code,
         'cip_due': cip_due,
@@ -867,9 +918,13 @@ def render_diagnosi_cip_ro(df_ro, baseline_ro, latest_ro):
             "Nessun segnale significativo di fouling: continuare il monitoraggio e non eseguire un CIP preventivo non necessario.",
             "No significant fouling signal: continue monitoring and avoid an unnecessary preventive CIP."
         ),
+        'monitor': ui_text(
+            f"Lieve deriva del passaggio salino ({diagnosis['salt_passage_change_pct']:+.1f}%): monitorare il trend. Il segnale non è persistente o corroborato e non costituisce un preallarme CIP.",
+            f"Slight salt-passage drift ({diagnosis['salt_passage_change_pct']:+.1f}%): monitor the trend. The signal is not persistent or corroborated and is not a CIP early warning."
+        ),
         'warning': ui_text(
-            "Preallarme CIP: confermare il trend con dati stabili e raccogliere evidenze di campo prima di scegliere il chimico.",
-            "CIP early warning: confirm the trend under stable operation and collect field evidence before selecting the chemical."
+            "Preallarme CIP confermato da un trend persistente e da segnali di processo coerenti: verificare le condizioni operative e raccogliere evidenze di campo prima di scegliere il chimico.",
+            "CIP early warning confirmed by a persistent trend and consistent process signals: verify operating conditions and collect field evidence before selecting the chemical."
         ),
         'cip_due': ui_text(
             "Soglia CIP raggiunta: pianificare il lavaggio senza attendere un fouling più profondo e meno recuperabile.",
@@ -886,26 +941,40 @@ def render_diagnosi_cip_ro(df_ro, baseline_ro, latest_ro):
     }
     if diagnosis['status_code'] == 'normal':
         st.success(status_messages['normal'])
+    elif diagnosis['status_code'] == 'monitor':
+        st.info(status_messages['monitor'])
     elif diagnosis['status_code'] == 'warning':
         st.warning(status_messages['warning'])
     else:
         st.error(status_messages[diagnosis['status_code']])
 
-    confidence_label = (
-        ui_text("bassa", "low") if diagnosis['confidence_pct'] < 42
-        else ui_text("media", "medium") if diagnosis['confidence_pct'] < 65
-        else ui_text("medio-alta", "medium-high")
+    quality_label = (
+        ui_text("bassa", "low") if diagnosis['data_quality_pct'] < 50
+        else ui_text("media", "medium") if diagnosis['data_quality_pct'] < 75
+        else ui_text("alta", "high")
     )
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(ui_text("Perdita permeabilità norm.", "Normalised permeability loss"), f"{diagnosis['perm_loss_pct']:.1f}%")
     c2.metric(ui_text("Aumento ΔP norm.", "Normalised ΔP increase"), f"{diagnosis['dp_rise_pct']:.1f}%")
-    c3.metric(ui_text("Aumento passaggio salino", "Salt-passage increase"), f"{diagnosis['salt_passage_change_pct']:+.1f}%")
-    c4.metric(ui_text("Affidabilità diagnosi", "Diagnostic confidence"), f"{diagnosis['confidence_pct']:.0f}%", confidence_label)
+    salt_delta = (
+        ui_text(
+            f"Mediana 24 h: {diagnosis['salt_recent_median_pct']:+.1f}%",
+            f"24 h median: {diagnosis['salt_recent_median_pct']:+.1f}%"
+        )
+        if np.isfinite(diagnosis['salt_recent_median_pct']) else None
+    )
+    c3.metric(
+        ui_text("Aumento passaggio salino", "Salt-passage increase"),
+        f"{diagnosis['salt_passage_change_pct']:+.1f}%",
+        salt_delta,
+        delta_color="off",
+    )
+    c4.metric(ui_text("Qualità dei dati", "Data quality"), f"{diagnosis['data_quality_pct']:.0f}%", quality_label)
 
     if not diagnosis['dp_flow_normalized']:
         st.warning(ui_text(
-            "Il ΔP non ha potuto essere corretto per la portata di alimento: la diagnosi usa il ΔP grezzo e ha affidabilità inferiore.",
-            "ΔP could not be corrected for feed flow: the diagnosis uses raw ΔP and has lower confidence."
+            "Il ΔP non ha potuto essere corretto per la portata di alimento: la diagnosi usa il ΔP grezzo e ha qualità interpretativa inferiore.",
+            "ΔP could not be corrected for feed flow: the diagnosis uses raw ΔP and has lower interpretive quality."
         ))
 
     cause_labels = {
@@ -926,7 +995,10 @@ def render_diagnosi_cip_ro(df_ro, baseline_ro, latest_ro):
     }
 
     evidence_by_cause = {
-        'stable': ui_text("Scostamenti sotto le soglie di preallarme.", "Changes remain below early-warning thresholds."),
+        'stable': ui_text(
+            "Nessuna combinazione persistente di segnali ha raggiunto le soglie di preallarme.",
+            "No persistent combination of signals has reached the early-warning thresholds."
+        ),
         'biofilm': ui_text(
             f"ΔP {diagnosis['dp_rise_pct']:+.1f}%, permeabilità -{diagnosis['perm_loss_pct']:.1f}%; un aumento rapido del ΔP rafforza questa ipotesi.",
             f"ΔP {diagnosis['dp_rise_pct']:+.1f}%, permeability -{diagnosis['perm_loss_pct']:.1f}%; a rapid ΔP rise strengthens this hypothesis."
@@ -1179,6 +1251,27 @@ def render_grafici_personalizzati(df_ro, df_uf):
     st.info("""💡 **Guida alla Lettura - Troubleshooting ed Esplorazione Libera:**
     Questa sezione non impone regole predefinite o calcoli automatici. Puoi sovrapporre liberamente qualsiasi parametro (idraulico, chimico o elettrico) memorizzato nel database per identificare correlazioni anomale non ovvie (ad esempio: misurare in quale misura un picco di pressione dell'alimento influenza il consumo elettrico SEC). È lo strumento ideale per la *Root Cause Analysis* in caso di anomalie di sistema.""")
 
+
+def _render_cip_forecast_notice(days, stable_message, forecast_subject):
+    """Colora la previsione in base all'urgenza, evitando allarmi rossi molto lontani."""
+    if days == 999:
+        st.success(stable_message)
+        return
+
+    message = ui_text(
+        f"{forecast_subject} stimata tra circa **{days}** giorni (proiezione indicativa).",
+        f"{forecast_subject} estimated in about **{days}** days (indicative projection)."
+    )
+    if days >= 180:
+        st.success(message)
+    elif days >= 60:
+        st.info(message)
+    elif days >= 30:
+        st.warning(message)
+    else:
+        st.error(message)
+
+
 def render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf, latest_uf, config_attuale, impianto_scelto):
     st.header("🔮 Analisi Predittiva e Stato di Salute")
     dp_predictive_col = 'dp_ro_norm_smooth' if 'dp_ro_norm_smooth' in df_ro.columns else 'dp_ro_smooth'
@@ -1227,11 +1320,11 @@ def render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf,
             col_a, col_b = st.columns([1, 2])
             with col_a:
                 st.metric("Indice Pulito a 25°C", f"{latest_ro['perm_norm_smooth']:.2f}", f"{latest_ro['perm_norm_smooth'] - baseline_ro['perm_norm_smooth']:+.2f}")
-                
-                if g_ro == 999:
-                    st.success("Situazione Stabile")
-                else:
-                    st.warning(f"Lavaggio chimico (CIP) tra **{g_ro}** giorni.")
+                _render_cip_forecast_notice(
+                    g_ro,
+                    ui_text("Situazione stabile", "Stable condition"),
+                    ui_text("Soglia CIP sulla permeabilità", "Permeability CIP threshold"),
+                )
                     
             with col_b:
                 fig = crea_grafico_previsione(df_ro, 'perm_norm_smooth', 'Previsione Fouling Membrane RO', 'Trend reale (media 24h)', 'Regressione / previsione', 30, L_PERM_RO, 'Limite CIP (85%)', yaxis_title='Permeabilità normalizzata')
@@ -1244,11 +1337,11 @@ def render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf,
             col_a, col_b = st.columns([1, 2])
             with col_a:
                 st.metric(ui_text("ΔP normalizzato attuale", "Current normalised ΔP"), f"{latest_ro[dp_predictive_col]:.2f} bar", f"{latest_ro[dp_predictive_col] - baseline_ro[dp_predictive_col]:+.2f} bar", delta_color="inverse")
-                
-                if g_dp == 999:
-                    st.success("Situazione Idraulica Stabile")
-                else:
-                    st.error(f"Lavaggio (CIP) stimato tra **{g_dp}** giorni.")
+                _render_cip_forecast_notice(
+                    g_dp,
+                    ui_text("Situazione idraulica stabile", "Stable hydraulic condition"),
+                    ui_text("Soglia CIP sul ΔP", "ΔP CIP threshold"),
+                )
                     
             with col_b:
                 fig = crea_grafico_previsione(df_ro, dp_predictive_col, 'Previsione Fouling Spaziatori RO', ui_text('ΔP normalizzato (media 24h)', 'Normalised ΔP (24 h average)'), 'Previsione fouling', 30, L_DPRO, 'Limite rischio CIP (+15%)', baseline_ro[dp_predictive_col], 'Baseline installazione', ui_text('Salto di pressione normalizzato (bar)', 'Normalised pressure drop (bar)'), 'up')
@@ -3231,7 +3324,9 @@ def _plant_overview_summary(impianto_scelto):
                 f"CIP/RO: preallarme rispetto alla baseline (permeabilità -{diagnosis['perm_loss_pct']:.1f}%, ΔP +{diagnosis['dp_rise_pct']:.1f}%, passaggio salino {diagnosis['salt_passage_change_pct']:+.1f}%).",
                 f"CIP/RO: early warning versus baseline (permeability -{diagnosis['perm_loss_pct']:.1f}%, ΔP +{diagnosis['dp_rise_pct']:.1f}%, salt passage {diagnosis['salt_passage_change_pct']:+.1f}%)."
             )))
-        elif diagnosis['status_code'] == 'normal':
+        elif diagnosis['status_code'] in {'normal', 'monitor'}:
+            # Una lieve deriva salina isolata resta visibile nel dettaglio, ma
+            # non deve generare un warning generale di impianto.
             result['cip_level'] = 'ok'
 
         result['recovery'] = _finite_float(latest_ro.get('recovery'))
