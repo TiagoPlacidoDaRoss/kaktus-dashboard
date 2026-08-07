@@ -352,6 +352,10 @@ CONFIG_IMPIANTI = {
         "has_uf": False,
         "has_sec": False,
         "has_bag_filters": True,
+        # Nella panoramica flotta interessa la produzione RO, non la portata
+        # potabile a valle della distribuzione.
+        "overview_flow_column": "fit001",
+        "overview_flow_label": "Flusso Permeato",
         "fit_labels": {
             "fit005": "Flusso Potabile (Uscita)",
         },
@@ -3224,11 +3228,19 @@ def _plant_overview_summary(impianto_scelto):
 
         result['recovery'] = _finite_float(latest_ro.get('recovery'))
         result['salt_rejection'] = _finite_float(latest_ro.get('sr_norm'))
-        flow_candidates = list(config_attuale.get('fit_labels', {}).keys())
+        overview_flow = config_attuale.get('overview_flow_column')
+        flow_candidates = (
+            [overview_flow]
+            if overview_flow
+            else list(config_attuale.get('fit_labels', {}).keys())
+        )
         flow_column = next((column for column in flow_candidates if column in latest_ro.index), None)
         if flow_column:
             result['main_flow'] = _finite_float(latest_ro.get(flow_column))
-            result['main_flow_label'] = config_attuale.get('fit_labels', {}).get(flow_column, flow_column.upper())
+            result['main_flow_label'] = config_attuale.get(
+                'overview_flow_label',
+                config_attuale.get('fit_labels', {}).get(flow_column, flow_column.upper())
+            )
 
         if np.isfinite(result['salt_rejection']) and result['salt_rejection'] < 98.0:
             level = 'critical' if result['salt_rejection'] < 95.0 else 'warning'
