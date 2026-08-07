@@ -17,6 +17,11 @@ import plotly.express as px
 _RAW_ST = st
 UI_LANGUAGE = "it"
 
+
+def ui_text(italiano, english):
+    """Restituisce testo già localizzato per i nuovi componenti dinamici."""
+    return english if UI_LANGUAGE == "en" else italiano
+
 _EXACT_TRANSLATIONS = {'N/D': 'N/A', 'Gennaio': 'January', 'Febbraio': 'February', 'Marzo': 'March', 'Aprile': 'April', 'Maggio': 'May', 'Giugno': 'June', 'Luglio': 'July', 'Agosto': 'August', 'Settembre': 'September', 'Ottobre': 'October', 'Novembre': 'November', 'Dicembre': 'December', '🌵 GW012 Kaktus (Capo Verde)': '🌵 GW012 Kaktus (Cape Verde)', '🌴 Pingwe (Zanzibar)': '🌴 Pingwe (Zanzibar)', 'Gestione Flotta': 'Fleet Management', '🌍 Seleziona Impianto:': '🌍 Select plant:', 'Seleziona Area Analisi:': 'Select analysis area:', '🔵 Osmosi Inversa (RO)': '🔵 Reverse Osmosis (RO)', '🟢 Ultrafiltrazione (UF)': '🟢 Ultrafiltration (UF)', '⚡ Inverter & Pompe': '⚡ Inverters & Pumps', '📈 Grafici Personalizzati': '📈 Custom Charts', '🔮 Manutenzione Predittiva': '🔮 Predictive Maintenance', '⚖️ Confronto Periodi': '⚖️ Period Comparison', '📊 Produzione & ATM': '📊 Production & ATM', '☁️ Cloud Supabase': '☁️ Supabase Cloud', '🖥️ Locale SQLite': '🖥️ Local SQLite', 'Recovery': 'Recovery', 'Reiezione (Norm)': 'Rejection (Norm.)', 'ΔP Filtri a Calza': 'Bag-filter ΔP', 'Consumo SEC': 'SEC consumption', 'ΔP Cartuccia CF01': 'CF01 cartridge ΔP', 'ΔP Membrane': 'Membrane ΔP', 'Parametri Acqua (Extra)': 'Water Parameters (Additional)', 'pH Permeato': 'Permeate pH', 'Conducibilità Alimento': 'Feed conductivity', 'Conducibilità Permeato': 'Permeate conductivity', 'Grafici di Tendenza': 'Trend Charts', 'Dati Tabellari ed Esportazione': 'Tabular Data and Export', '📥 Esporta Storico in formato CSV': '📥 Export history as CSV', '📥 Esporta CSV': '📥 Export CSV', 'Nessun dato UF.': 'No UF data.', 'Flusso UF': 'UF flow', 'TMP UF': 'UF TMP', 'ΔP Filtro': 'Filter ΔP', 'Trend Pressioni UF': 'UF pressure trends', 'Nessun dato inverter.': 'No inverter data.', 'Pompa': 'Pump', 'Nome Pompa': 'Pump name', 'Analisi Salute Statore': 'Stator Health Analysis', 'Seleziona pompa per trend Cosφ:': 'Select pump for Cosφ trend:', 'Seleziona Intervallo:': 'Select range:', 'Scegli parametri:': 'Select parameters:', '🔮 Analisi Predittiva e Stato di Salute': '🔮 Predictive Analysis and Health Status', '📊 Cruscotto Salute': '📊 Health Dashboard', '💧 Membrane (Perm)': '💧 Membranes (Permeability)', '🧱 Fouling Spaziatori (ΔP)': '🧱 Spacer Fouling (ΔP)', '🟢 Membrane UF': '🟢 UF Membranes', '🧦 Filtri a Calza': '🧦 Bag Filters', '🗑️ Cartucce CF01': '🗑️ CF01 Cartridges', '⛨ Diagnostica Motori': '⛨ Motor Diagnostics', 'Membrane RO (ASTM)': 'RO membranes (ASTM)', 'Spaziatori RO (ΔP)': 'RO spacers (ΔP)', 'Filtro Cartucce CF01': 'CF01 cartridge filter', 'Membrane UF': 'UF membranes', 'Filtri a Calza': 'Bag filters', 'Stabile - Nessun intervento': 'Stable — No intervention required', 'Dati insufficienti': 'Insufficient data', 'Indice Pulito a 25°C': 'Clean index at 25°C', 'Situazione Stabile': 'Stable condition', 'ΔP Attuale': 'Current ΔP', 'Situazione Idraulica Stabile': 'Stable hydraulic condition', 'Stato Elettrico': 'Electrical status', 'Stato Meccanico': 'Mechanical status', 'Deriva Cosφ (Elettrica)': 'Cosφ drift (Electrical)', 'Degrado A/Hz (Meccanica)': 'A/Hz degradation (Mechanical)', '🔴 Critico': '🔴 Critical', '🟡 Attenzione': '🟡 Warning', '🟢 Ottimale': '🟢 Optimal', 'Seleziona pompa per dettaglio trend storico:': 'Select pump for detailed historical trend:', 'Fattore di potenza': 'Power factor', '⚖️ Analisi Comparativa (A/B Test)': '⚖️ Comparative Analysis (A/B Test)', '📊 Seleziona il Parametro da analizzare:': '📊 Select the parameter to analyse:', 'Date Periodo A:': 'Period A dates:', 'Date Periodo B:': 'Period B dates:', 'Media Periodo A': 'Period A average', 'Media Periodo B': 'Period B average', 'Variazione Percentuale': 'Percentage change', 'Permeabilità Normalizzata (Fouling RO)': 'Normalised permeability (RO fouling)', 'Salto di Pressione (ΔP RO)': 'Pressure drop (RO ΔP)', 'Reiezione Salina (%)': 'Salt rejection (%)', 'Consumo Specifico (SEC)': 'Specific energy consumption (SEC)', 'TMP Ultrafiltrazione': 'Ultrafiltration TMP', '📊 Produzione e vendite ATM': '📊 Production and ATM Sales', 'Mese da analizzare:': 'Month to analyse:', 'Dati da visualizzare nel grafico:': 'Data to display in the chart:', 'Produzione': 'Production', 'Vendite ATM': 'ATM sales', 'Concentrato': 'Concentrate', 'Totale prodotto': 'Total production', 'Totale venduto ATM': 'Total ATM sales', 'Totale concentrato': 'Total concentrate', 'Media giornaliera prodotta': 'Average daily production', 'Media giornaliera venduta': 'Average daily ATM sales', 'Media giornaliera concentrato': 'Average daily concentrate', 'Medie giornaliere per periodo personalizzato': 'Daily averages for a custom period', 'Seleziona il periodo da analizzare:': 'Select the period to analyse:', 'Media produzione nel periodo': 'Average production in the period', 'Media vendite ATM nel periodo': 'Average ATM sales in the period', 'Media concentrato nel periodo': 'Average concentrate in the period', '#### Grafico del periodo selezionato': '#### Selected-period chart', '#### Grafico del mese selezionato': '#### Selected-month chart', 'Riepilogo giornaliero': 'Daily summary', 'Dettaglio produzione PDF': 'PDF production details', 'Dettaglio ATM': 'ATM details', 'Data': 'Date', 'Prodotto (m³)': 'Production (m³)', 'Concentrato (m³)': 'Concentrate (m³)', 'Venduto ATM (L)': 'ATM sales (L)', 'Venduto ATM (m³)': 'ATM sales (m³)', 'data_rif': 'Reference date', 'permeato': 'Permeate', 'concentrato': 'Concentrate', 'insolation': 'Solar irradiation', 'file_origine': 'Source file', 'litri_erogati': 'Dispensed litres', 'atm_id': 'ATM ID', 'atm_litri': 'ATM litres', 'atm_m3': 'ATM m³', '🏢 Telemetria ATM (Distribuito)': '🏢 ATM Telemetry (Distributed)', 'Totale Litri Erogati': 'Total litres dispensed', 'Media Giornaliera': 'Daily average', '📄 Analisi Produzione da PDF': '📄 PDF Production Analysis', 'Totale Permeato': 'Total permeate', 'Media Insolazione': 'Average solar irradiation', 'Flusso Permeato': 'Permeate flow', 'Flusso Concentrato': 'Concentrate flow', 'Flusso Potabile (Uscita)': 'Potable-water flow (Outlet)', 'Pompa HP 1 (RO)': 'HP pump 1 (RO)', 'Pompa HP 2 (RO)': 'HP pump 2 (RO)', 'Pompa HP 3 (RO)': 'HP pump 3 (RO)', 'Pompa HP 4 (RO)': 'HP pump 4 (RO)', 'Pompa Pozzo Kaktus': 'Kaktus well pump', 'Pompa Alimento (RO)': 'RO feed pump', 'Pompa Travaso TK10-3': 'TK10-3 transfer pump', 'Pompa Pozzo Toninho': 'Toninho well pump', 'Pompa Travaso TK11-3': 'TK11-3 transfer pump', 'Pompa Pozzo 1 (P01)': 'Well pump 1 (P01)', 'Pompa Pozzo 2 (P05)': 'Well pump 2 (P05)', 'Pompa ATM Standard': 'Standard ATM pump', 'Pompa ATM Premium': 'Premium ATM pump', 'Pompa Ausiliaria (NAS5)': 'Auxiliary pump (NAS5)', 'Pompa Sconosciuta': 'Unknown pump', 'P. Ingresso (bar)': 'Inlet pressure (bar)', 'P. Uscita (bar)': 'Outlet pressure (bar)', 'Permeato (m³/h)': 'Permeate (m³/h)', 'Portata (m³/h)': 'Flow (m³/h)', 'Pressione (bar)': 'Pressure (bar)', 'Permeabilità (m³/h/bar)': 'Permeability (m³/h/bar)', 'Permeabilità normalizzata': 'Normalised permeability', 'Salto di pressione (bar)': 'Pressure drop (bar)', 'ΔP (bar)': 'ΔP (bar)', 'Volume giornaliero (m³)': 'Daily volume (m³)', 'Dato': 'Data series', 'Baseline': 'Baseline', 'Limite': 'Limit', 'Previsione': 'Forecast', 'Regressione': 'Regression', 'Previsione fouling': 'Fouling forecast', 'Previsione intasamento': 'Clogging forecast', 'Trend reale (media 24h)': 'Actual trend (24 h average)', 'ΔP reale (media 24h)': 'Actual ΔP (24 h average)', 'ΔP reale': 'Actual ΔP', 'TMP reale': 'Actual TMP', 'Limite TMP': 'TMP limit', 'Limite sostituzione': 'Replacement limit', 'Limite CIP (85%)': 'CIP limit (85%)', 'Limite rischio CIP (+15%)': 'CIP risk limit (+15%)', 'Baseline installazione': 'Installation baseline', 'Allarme (-10%)': 'Alarm (-10%)', 'Trend (Media 24h)': 'Trend (24 h average)', 'Dato Orario': 'Hourly data', 'm³/giorno': 'm³/day', 'L/giorno': 'L/day', "💡 **Guida alla Lettura - Osmosi Inversa (RO):**\n    - **Recovery (Recupero):** La percentuale di acqua di alimento trasformata in permeato (acqua dolce).\n    - **Reiezione Salina (Normalizzata):** Indica l'efficienza chimica della membrana nel bloccare i sali, depurata matematicamente dalle fluttuazioni di temperatura. Per calcolarla si usa il fattore $TCF = \\exp\\left[2640 \\cdot \\left(\\frac{1}{298.15} - \\frac{1}{T_{acqua} + 273.15}\\right)\\right]$. Valori ottimali: > 98%.\n    - **Consumo SEC:** Energia Specifica Consumata (kWh/m³). Rappresenta quanta energia è necessaria per produrre un singolo metro cubo di acqua dolce.\n    - **ΔP (Salto di Pressione):** Misura la perdita di carico idraulica tra l'ingresso e l'uscita dei vessel. Un aumento continuo segnala un'ostruzione fisica (fouling, bio-fouling o scaling inorganico).": "💡 **Reading Guide — Reverse Osmosis (RO):**\n    - **Recovery:** The percentage of feedwater converted into permeate (fresh water).\n    - **Normalised salt rejection:** The membrane's efficiency in retaining salts, mathematically corrected for temperature fluctuations. It uses the factor $TCF = \\exp\\left[2640 \\cdot \\left(\\frac{1}{298.15} - \\frac{1}{T_{water} + 273.15}\\right)\\right]$. Recommended values: > 98%.\n    - **SEC consumption:** Specific energy consumption (kWh/m³), indicating the energy required to produce one cubic metre of fresh water.\n    - **ΔP (pressure drop):** The hydraulic pressure loss between vessel inlet and outlet. A continuous increase indicates physical obstruction such as fouling, biofouling or inorganic scaling.", "💡 **Guida alla Lettura - Ultrafiltrazione (UF):**\n    - **TMP (Pressione Trans-Membrana):** È la pressione netta necessaria per forzare l'acqua ad attraversare i pori microscopici (fibre cave) della membrana di pre-trattamento. \n    - **Salute dell'Asset:** Un rapido e continuo aumento della TMP (verso la soglia di guardia di 1.5 bar) indica un intasamento dei pori (fouling irreversibile) o la necessità di rendere i cicli di controlavaggio (Backwash / CEB) più frequenti o aggressivi.": '💡 **Reading Guide — Ultrafiltration (UF):**\n    - **TMP (Transmembrane Pressure):** The net pressure required to force water through the microscopic pores (hollow fibres) of the pretreatment membrane.\n    - **Asset health:** A rapid and continuous rise in TMP towards the 1.5 bar warning threshold indicates pore blockage (irreversible fouling) or the need for more frequent or more intensive backwash/CEB cycles.', "💡 **Guida alla Lettura - Elettromeccanica Inverter:**\n    - **Cosφ (Fattore di Potenza):** Indica l'efficienza magnetica dello statore del motore elettrico. Un calo progressivo o brusco del Cosφ rispetto alla linea di base indica degrado dell'isolamento o possibili cortocircuiti tra le spire avvolte (situazione critica).\n    - **Sforzo Meccanico (A/Hz):** L'indice calcolato dal rapporto tra Corrente assorbita e Frequenza di rete. Un aumento di questo valore indica che la pompa sta chiedendo più Ampere a parità di giri di rotazione: è un forte campanello d'allarme per usura dei cuscinetti, attriti anomali o blocco della girante idraulica.": '💡 **Reading Guide — Inverter Electromechanics:**\n    - **Cosφ (power factor):** Indicates the magnetic efficiency of the electric motor stator. A gradual or sudden decrease from the baseline may indicate insulation degradation or possible turn-to-turn short circuits.\n    - **Mechanical load (A/Hz):** The ratio between current draw and operating frequency. An increase means the pump requires more current at the same speed, which may indicate bearing wear, abnormal friction or impeller blockage.', "💡 **Guida alla Lettura - Troubleshooting ed Esplorazione Libera:**\n    Questa sezione non impone regole predefinite o calcoli automatici. Puoi sovrapporre liberamente qualsiasi parametro (idraulico, chimico o elettrico) memorizzato nel database per identificare correlazioni anomale non ovvie (ad esempio: misurare in quale misura un picco di pressione dell'alimento influenza il consumo elettrico SEC). È lo strumento ideale per la *Root Cause Analysis* in caso di anomalie di sistema.": '💡 **Reading Guide — Troubleshooting and Free Exploration:**\n    This section applies no predefined rules or automatic calculations. You can freely overlay any hydraulic, chemical or electrical parameter stored in the database to identify non-obvious abnormal correlations, such as how a feed-pressure spike affects SEC. It is designed for *Root Cause Analysis* when system anomalies occur.', '💡 **Guida alla Lettura - Modello Predittivo:**\n    - **Health Score (%):** Un indicatore compreso tra 0 e 100 che rappresenta la "vita utile residua" dell\'asset prima di dover effettuare una manutenzione correttiva.\n    - **Come calcoliamo le date:** Il sistema utilizza un algoritmo di **Regressione Lineare** (usando l\'equazione $y = mx + q$) che elabora la tendenza dei dati storici. Quando la retta di regressione tracciata dal modello interseca i limiti ingegneristici predefiniti (ad esempio: una perdita del 15% sulla permeabilità iniziale), il sistema stima in modo proattivo i giorni rimanenti al lavaggio (CIP) o alla sostituzione.': "💡 **Reading Guide — Predictive Model:**\n    - **Health Score (%):** An indicator from 0 to 100 representing the asset's estimated remaining useful condition before corrective maintenance is required.\n    - **How dates are calculated:** The system uses a **linear regression** algorithm ($y = mx + q$) to evaluate the historical trend. When the regression line intersects a predefined engineering limit, such as a 15% loss of initial permeability, it estimates the remaining time before CIP or replacement.", '💡 **Guida alla Lettura - Analisi Comparativa (A/B Test e Box Plot):**\n    - **La "Scatola" (Box):** Rappresenta visivamente il 50% centrale delle letture di quel periodo (il range di funzionamento "normale"). Se la scatola si "allarga" molto, l\'impianto sta soffrendo di instabilità idraulica.\n    - **La Mediana (linea centrale):** È il valore medio effettivo di funzionamento. Se la mediana del Periodo B è palesemente disallineata da quella del Periodo A, significa che l\'impianto ha subito una deviazione strutturale (es. dopo aver cambiato le cartucce o eseguito un CIP).\n    - **I Puntini (Outliers):** Identificano singoli campioni anomali, fuori scala rispetto al normale ciclo produttivo (ad esempio: colpi d\'ariete, partenze repentine dell\'inverter). Più puntini vedi, più l\'infrastruttura ha subito shock termici o idraulici.': '💡 **Reading Guide — Comparative Analysis (A/B Test and Box Plot):**\n    - **The box:** Represents the central 50% of the readings in the period, corresponding to the normal operating range. A much wider box indicates greater hydraulic instability.\n    - **The median:** The central operating value. A clear shift in Period B compared with Period A indicates a structural change, such as after cartridge replacement or CIP.\n    - **Outliers:** Individual samples outside the normal operating distribution, such as water hammer or abrupt inverter starts. More outliers indicate more frequent hydraulic or thermal shocks.'}
 
 
@@ -466,6 +471,30 @@ def calcola_metriche_derivate(df_ro):
     if 'dp_cf01' not in out.columns: out['dp_cf01'] = out['pit001'] - out['pit002']
     if 'dp_ro' not in out.columns: out['dp_ro'] = out['pit003'] - out['pit004']
     out['dp_ro_smooth'] = out['dp_ro'].rolling(window=24, min_periods=1).mean()
+
+    # Il salto di pressione varia anche con la portata. Per la diagnosi CIP lo
+    # riportiamo alla portata di alimento iniziale usando l'esponente idraulico
+    # 1,5 comunemente adottato per i feed spacer spiral-wound. Se la portata non
+    # è disponibile, il dato grezzo resta il fallback esplicito.
+    if {'fit001', 'fit002'}.issubset(out.columns):
+        q_feed = pd.to_numeric(out['fit001'], errors='coerce') + pd.to_numeric(out['fit002'], errors='coerce')
+    elif {'fit001', 'recovery'}.issubset(out.columns):
+        recovery_fraction = pd.to_numeric(out['recovery'], errors='coerce') / 100.0
+        q_feed = pd.to_numeric(out['fit001'], errors='coerce') / recovery_fraction.where(recovery_fraction > 0.01)
+    else:
+        q_feed = pd.Series(np.nan, index=out.index, dtype=float)
+
+    q_feed = pd.to_numeric(q_feed, errors='coerce').where(lambda s: s > 0.01)
+    q_ref_values = q_feed.dropna().iloc[:24]
+    q_ref = float(q_ref_values.median()) if not q_ref_values.empty else np.nan
+    if np.isfinite(q_ref) and q_ref > 0:
+        correction = np.power(q_ref / q_feed, 1.5).clip(lower=0.25, upper=4.0)
+        out['dp_ro_norm'] = pd.to_numeric(out['dp_ro'], errors='coerce') * correction
+        out['dp_ro_norm_method'] = 'flow_corrected'
+    else:
+        out['dp_ro_norm'] = pd.to_numeric(out['dp_ro'], errors='coerce')
+        out['dp_ro_norm_method'] = 'raw_fallback'
+    out['dp_ro_norm_smooth'] = out['dp_ro_norm'].rolling(window=24, min_periods=1).mean()
     return out
 
 def converti_df_csv(df):
@@ -565,6 +594,429 @@ def get_health_score(valore_attuale, baseline, limite, is_max_limit=True):
         score = 100 - ((float(valore_attuale) - float(baseline)) / denominatore * 100) if is_max_limit else 100 - ((float(baseline) - float(valore_attuale)) / denominatore * 100)
         return max(0.0, min(100.0, score if np.isfinite(score) else 0.0))
     except (TypeError, ValueError): return 0.0
+
+
+def _finite_float(value, default=np.nan):
+    try:
+        converted = float(value)
+        return converted if np.isfinite(converted) else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _clip01(value):
+    value = _finite_float(value, 0.0)
+    return float(np.clip(value, 0.0, 1.0))
+
+
+def _relative_slope_per_day(df, column, reference, lookback_days=14):
+    """Pendenza recente espressa come % del riferimento per giorno."""
+    if df is None or df.empty or column not in df.columns or not np.isfinite(reference) or abs(reference) < 1e-12:
+        return 0.0
+
+    dates = pd.to_datetime(df.get('date_str'), errors='coerce')
+    values = pd.to_numeric(df[column], errors='coerce')
+    valid = dates.notna() & values.notna() & np.isfinite(values)
+    if valid.sum() < 3:
+        return 0.0
+
+    recent = pd.DataFrame({'date': dates[valid], 'value': values[valid]}).sort_values('date')
+    cutoff = recent['date'].max() - pd.Timedelta(days=lookback_days)
+    recent = recent[recent['date'] >= cutoff]
+    if len(recent) < 3 or recent['date'].nunique() < 2:
+        return 0.0
+
+    x_days = (recent['date'] - recent['date'].iloc[0]).dt.total_seconds().to_numpy(dtype=float) / 86400.0
+    try:
+        slope = np.polyfit(x_days, recent['value'].to_numpy(dtype=float), 1)[0]
+    except (TypeError, ValueError, np.linalg.LinAlgError):
+        return 0.0
+    return float(slope / abs(reference) * 100.0) if np.isfinite(slope) else 0.0
+
+
+def diagnostica_cip_ro(df_ro, baseline_ro, latest_ro, osservazioni=None):
+    """Diagnosi euristica: i punteggi sono compatibilità relative, non probabilità statistiche."""
+    osservazioni = set(osservazioni or [])
+    dp_col = 'dp_ro_norm_smooth' if 'dp_ro_norm_smooth' in df_ro.columns else 'dp_ro_smooth'
+
+    base_perm = _finite_float(baseline_ro.get('perm_norm_smooth'))
+    curr_perm = _finite_float(latest_ro.get('perm_norm_smooth'))
+    base_dp = _finite_float(baseline_ro.get(dp_col))
+    curr_dp = _finite_float(latest_ro.get(dp_col))
+    base_sr = _finite_float(baseline_ro.get('sr_norm'))
+    curr_sr = _finite_float(latest_ro.get('sr_norm'))
+
+    perm_loss_pct = max(0.0, (base_perm - curr_perm) / base_perm * 100.0) if np.isfinite(base_perm) and base_perm > 0 and np.isfinite(curr_perm) else 0.0
+    perm_gain_pct = max(0.0, (curr_perm - base_perm) / base_perm * 100.0) if np.isfinite(base_perm) and base_perm > 0 and np.isfinite(curr_perm) else 0.0
+    dp_rise_pct = max(0.0, (curr_dp - base_dp) / base_dp * 100.0) if np.isfinite(base_dp) and base_dp > 0 and np.isfinite(curr_dp) else 0.0
+    dp_drop_pct = max(0.0, (base_dp - curr_dp) / base_dp * 100.0) if np.isfinite(base_dp) and base_dp > 0 and np.isfinite(curr_dp) else 0.0
+    sr_drop_pp = max(0.0, base_sr - curr_sr) if np.isfinite(base_sr) and np.isfinite(curr_sr) else 0.0
+
+    base_salt_passage = max(100.0 - base_sr, 0.05) if np.isfinite(base_sr) else np.nan
+    curr_salt_passage = max(100.0 - curr_sr, 0.0) if np.isfinite(curr_sr) else np.nan
+    salt_passage_change_pct = (
+        (curr_salt_passage - base_salt_passage) / base_salt_passage * 100.0
+        if np.isfinite(base_salt_passage) and np.isfinite(curr_salt_passage)
+        else 0.0
+    )
+
+    perm_slope_pct_day = _relative_slope_per_day(df_ro, 'perm_norm_smooth', base_perm)
+    dp_slope_pct_day = _relative_slope_per_day(df_ro, dp_col, base_dp)
+
+    perm_signal = _clip01(perm_loss_pct / 15.0)
+    dp_signal = _clip01(dp_rise_pct / 15.0)
+    salt_signal = _clip01(max(salt_passage_change_pct / 25.0, sr_drop_pp / 0.5))
+    perm_gain_signal = _clip01(perm_gain_pct / 10.0)
+    dp_drop_signal = _clip01(dp_drop_pct / 15.0)
+    rapid_signal = _clip01(max(-perm_slope_pct_day / 1.0, dp_slope_pct_day / 1.5))
+
+    base_recovery = _finite_float(baseline_ro.get('recovery'))
+    curr_recovery = _finite_float(latest_ro.get('recovery'))
+    recovery_rise_signal = _clip01((curr_recovery - base_recovery) / 5.0) if np.isfinite(base_recovery) and np.isfinite(curr_recovery) else 0.0
+
+    severity = _clip01(max(
+        perm_loss_pct / 15.0,
+        dp_rise_pct / 15.0,
+        max(salt_passage_change_pct, 0.0) / 20.0,
+        sr_drop_pp / 0.5,
+        perm_gain_pct / 10.0,
+    ))
+
+    scores = {
+        'stable': 0.05 + 3.0 * (1.0 - severity) ** 2,
+        'biofilm': 0.03 + 0.48 * dp_signal + 0.28 * perm_signal + 0.15 * rapid_signal + 0.09 * salt_signal,
+        'organic_colloidal': 0.04 + 0.34 * perm_signal + 0.30 * dp_signal + 0.10 * salt_signal + 0.12 * severity * (1.0 - rapid_signal),
+        'mineral_scale': 0.03 + 0.34 * perm_signal + 0.18 * dp_signal + 0.32 * salt_signal + 0.10 * recovery_rise_signal,
+        'metal_inorganic': 0.02 + 0.30 * dp_signal + 0.16 * perm_signal + 0.28 * salt_signal + 0.16 * rapid_signal,
+        'integrity_anomaly': 0.01 + 0.48 * salt_signal + 0.34 * perm_gain_signal + 0.17 * dp_drop_signal,
+    }
+
+    observation_boosts = {
+        'slimy_deposit': ('biofilm', 1.50),
+        'microbiology_positive': ('biofilm', 1.25),
+        'high_sdi_turbidity': ('organic_colloidal', 1.35),
+        'hard_crystals': ('mineral_scale', 1.50),
+        'red_brown_deposit': ('metal_inorganic', 1.50),
+        'oxidant_event': ('integrity_anomaly', 1.60),
+    }
+    for observation in osservazioni:
+        if observation in observation_boosts:
+            cause, boost = observation_boosts[observation]
+            scores[cause] += boost
+            scores['stable'] *= 0.35
+
+    total_score = sum(max(score, 0.0) for score in scores.values()) or 1.0
+    probabilities = {cause: max(score, 0.0) / total_score * 100.0 for cause, score in scores.items()}
+    ranked = sorted(probabilities.items(), key=lambda item: item[1], reverse=True)
+
+    valid_signals = sum([
+        np.isfinite(base_perm) and base_perm > 0 and np.isfinite(curr_perm),
+        np.isfinite(base_dp) and base_dp > 0 and np.isfinite(curr_dp),
+        np.isfinite(base_sr) and np.isfinite(curr_sr),
+    ])
+    valid_dates = pd.to_datetime(df_ro.get('date_str'), errors='coerce').dropna()
+    data_span_days = (valid_dates.max() - valid_dates.min()).total_seconds() / 86400.0 if len(valid_dates) >= 2 else 0.0
+    data_quality = 0.45 * _clip01(len(df_ro) / 168.0) + 0.30 * _clip01(data_span_days / 7.0) + 0.25 * (valid_signals / 3.0)
+    separation = _clip01((ranked[0][1] - ranked[1][1]) / 40.0) if len(ranked) > 1 else 0.0
+    confidence_pct = 25.0 + 28.0 * data_quality + 18.0 * separation + min(12.0, 4.0 * len(osservazioni))
+    if ranked[0][0] != 'stable' and not osservazioni:
+        confidence_pct = min(confidence_pct, 62.0)
+    confidence_pct = float(np.clip(confidence_pct, 20.0, 78.0))
+
+    cip_due = perm_loss_pct >= 15.0 or dp_rise_pct >= 15.0 or salt_passage_change_pct >= 10.0
+    cip_early_warning = perm_loss_pct >= 10.0 or dp_rise_pct >= 10.0 or salt_passage_change_pct >= 5.0
+    alkaline_probability = probabilities['biofilm'] + probabilities['organic_colloidal']
+    acid_probability = probabilities['mineral_scale'] + probabilities['metal_inorganic']
+    integrity_probability = probabilities['integrity_anomaly']
+
+    insufficient_data = valid_signals < 2 or len(df_ro) < 24
+    if insufficient_data:
+        cleaning_code = 'insufficient_data'
+    elif integrity_probability >= 35.0 and ranked[0][0] == 'integrity_anomaly':
+        cleaning_code = 'integrity_check'
+    elif not cip_early_warning and probabilities['stable'] >= 45.0:
+        cleaning_code = 'none'
+    elif not cip_due:
+        cleaning_code = 'verify_then_plan'
+    elif alkaline_probability >= 55.0 and acid_probability < 35.0:
+        cleaning_code = 'alkaline'
+    elif acid_probability >= 55.0 and alkaline_probability < 35.0:
+        cleaning_code = 'acid'
+    else:
+        cleaning_code = 'sequential_alkaline_acid'
+
+    if cleaning_code == 'insufficient_data':
+        status_code = 'insufficient'
+    elif cleaning_code == 'integrity_check':
+        status_code = 'investigate'
+    elif cip_due:
+        status_code = 'cip_due'
+    elif cip_early_warning:
+        status_code = 'warning'
+    else:
+        status_code = 'normal'
+
+    return {
+        'dp_column': dp_col,
+        'dp_flow_normalized': dp_col == 'dp_ro_norm_smooth' and latest_ro.get('dp_ro_norm_method') == 'flow_corrected',
+        'perm_loss_pct': perm_loss_pct,
+        'dp_rise_pct': dp_rise_pct,
+        'sr_drop_pp': sr_drop_pp,
+        'salt_passage_change_pct': salt_passage_change_pct,
+        'perm_slope_pct_day': perm_slope_pct_day,
+        'dp_slope_pct_day': dp_slope_pct_day,
+        'severity': severity,
+        'probabilities': probabilities,
+        'ranked': ranked,
+        'confidence_pct': confidence_pct,
+        'cleaning_code': cleaning_code,
+        'status_code': status_code,
+        'cip_due': cip_due,
+        'cip_early_warning': cip_early_warning,
+        'alkaline_probability': alkaline_probability,
+        'acid_probability': acid_probability,
+        'integrity_probability': integrity_probability,
+        'valid_signals': valid_signals,
+        'insufficient_data': insufficient_data,
+        'observations': sorted(osservazioni),
+    }
+
+
+def render_diagnosi_cip_ro(df_ro, baseline_ro, latest_ro):
+    st.subheader(ui_text("🧪 Diagnosi probabile e strategia CIP", "🧪 Probable cause and CIP strategy"))
+    st.caption(ui_text(
+        "I valori percentuali sono punteggi euristici di compatibilità con i segnali disponibili, non probabilità statistiche né identificazioni di laboratorio.",
+        "Percentages are heuristic compatibility scores based on available signals, not statistical probabilities or laboratory identifications."
+    ))
+
+    observation_labels = {
+        'slimy_deposit': ui_text("Deposito viscido / gelatinoso", "Slimy / gelatinous deposit"),
+        'microbiology_positive': ui_text("Conta microbiologica o ATP elevati", "High microbiological count or ATP"),
+        'high_sdi_turbidity': ui_text("SDI o torbidità alimento elevati", "High feed SDI or turbidity"),
+        'hard_crystals': ui_text("Cristalli o deposito minerale duro", "Crystals or hard mineral deposit"),
+        'red_brown_deposit': ui_text("Deposito rosso-bruno / Fe-Mn", "Red-brown deposit / Fe-Mn"),
+        'oxidant_event': ui_text("Evento cloro/ossidante o perdita improvvisa di reiezione", "Chlorine/oxidant event or sudden rejection loss"),
+    }
+    observations = st.multiselect(
+        ui_text("Osservazioni di campo disponibili (opzionali):", "Available field observations (optional):"),
+        options=list(observation_labels.keys()),
+        format_func=lambda code: observation_labels[code],
+        key="cip_field_observations",
+        help=ui_text(
+            "Selezionare solo evidenze realmente osservate o misurate: modificano il peso della diagnosi.",
+            "Select only observed or measured evidence: these inputs change the diagnostic weighting."
+        )
+    )
+    diagnosis = diagnostica_cip_ro(df_ro, baseline_ro, latest_ro, observations)
+
+    status_messages = {
+        'normal': ui_text(
+            "Nessun segnale significativo di fouling: continuare il monitoraggio e non eseguire un CIP preventivo non necessario.",
+            "No significant fouling signal: continue monitoring and avoid an unnecessary preventive CIP."
+        ),
+        'warning': ui_text(
+            "Preallarme CIP: confermare il trend con dati stabili e raccogliere evidenze di campo prima di scegliere il chimico.",
+            "CIP early warning: confirm the trend under stable operation and collect field evidence before selecting the chemical."
+        ),
+        'cip_due': ui_text(
+            "Soglia CIP raggiunta: pianificare il lavaggio senza attendere un fouling più profondo e meno recuperabile.",
+            "CIP threshold reached: schedule cleaning before fouling becomes deeper and less recoverable."
+        ),
+        'investigate': ui_text(
+            "Il profilo è più compatibile con perdita d'integrità, ossidazione o anomalia idraulica: non avviare un CIP alla cieca.",
+            "The profile is more compatible with integrity loss, oxidation or a hydraulic anomaly: do not run a blind CIP."
+        ),
+        'insufficient': ui_text(
+            "Dati insufficienti per una diagnosi CIP: servono almeno 24 campioni e due segnali validi tra permeabilità, ΔP e reiezione.",
+            "Insufficient data for a CIP diagnosis: at least 24 samples and two valid signals among permeability, ΔP and rejection are required."
+        ),
+    }
+    if diagnosis['status_code'] == 'normal':
+        st.success(status_messages['normal'])
+    elif diagnosis['status_code'] == 'warning':
+        st.warning(status_messages['warning'])
+    else:
+        st.error(status_messages[diagnosis['status_code']])
+
+    confidence_label = (
+        ui_text("bassa", "low") if diagnosis['confidence_pct'] < 42
+        else ui_text("media", "medium") if diagnosis['confidence_pct'] < 65
+        else ui_text("medio-alta", "medium-high")
+    )
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric(ui_text("Perdita permeabilità norm.", "Normalised permeability loss"), f"{diagnosis['perm_loss_pct']:.1f}%")
+    c2.metric(ui_text("Aumento ΔP norm.", "Normalised ΔP increase"), f"{diagnosis['dp_rise_pct']:.1f}%")
+    c3.metric(ui_text("Aumento passaggio salino", "Salt-passage increase"), f"{diagnosis['salt_passage_change_pct']:+.1f}%")
+    c4.metric(ui_text("Affidabilità diagnosi", "Diagnostic confidence"), f"{diagnosis['confidence_pct']:.0f}%", confidence_label)
+
+    if not diagnosis['dp_flow_normalized']:
+        st.warning(ui_text(
+            "Il ΔP non ha potuto essere corretto per la portata di alimento: la diagnosi usa il ΔP grezzo e ha affidabilità inferiore.",
+            "ΔP could not be corrected for feed flow: the diagnosis uses raw ΔP and has lower confidence."
+        ))
+
+    cause_labels = {
+        'stable': ui_text("Nessun fouling significativo", "No significant fouling"),
+        'biofilm': ui_text("Biofilm / fouling biologico", "Biofilm / biological fouling"),
+        'organic_colloidal': ui_text("Organico e colloidale", "Organic and colloidal fouling"),
+        'mineral_scale': ui_text("Scaling / precipitato minerale", "Scaling / mineral precipitate"),
+        'metal_inorganic': ui_text("Ossidi metallici / inorganico", "Metal oxides / inorganic deposit"),
+        'integrity_anomaly': ui_text("Danno membrana / anomalia idraulica", "Membrane damage / hydraulic anomaly"),
+    }
+    cleaning_by_cause = {
+        'stable': ui_text("Nessun CIP", "No CIP"),
+        'biofilm': ui_text("CIP basico", "Alkaline CIP"),
+        'organic_colloidal': ui_text("CIP basico", "Alkaline CIP"),
+        'mineral_scale': ui_text("CIP acido", "Acid CIP"),
+        'metal_inorganic': ui_text("CIP acido", "Acid CIP"),
+        'integrity_anomaly': ui_text("Verifica integrità; CIP non risolutivo", "Integrity check; CIP may not resolve it"),
+    }
+
+    evidence_by_cause = {
+        'stable': ui_text("Scostamenti sotto le soglie di preallarme.", "Changes remain below early-warning thresholds."),
+        'biofilm': ui_text(
+            f"ΔP {diagnosis['dp_rise_pct']:+.1f}%, permeabilità -{diagnosis['perm_loss_pct']:.1f}%; un aumento rapido del ΔP rafforza questa ipotesi.",
+            f"ΔP {diagnosis['dp_rise_pct']:+.1f}%, permeability -{diagnosis['perm_loss_pct']:.1f}%; a rapid ΔP rise strengthens this hypothesis."
+        ),
+        'organic_colloidal': ui_text(
+            f"Permeabilità -{diagnosis['perm_loss_pct']:.1f}% con ΔP {diagnosis['dp_rise_pct']:+.1f}%: profilo tipico di deposito sulla superficie/spaziatore.",
+            f"Permeability -{diagnosis['perm_loss_pct']:.1f}% with ΔP {diagnosis['dp_rise_pct']:+.1f}%: a surface/spacer deposit pattern."
+        ),
+        'mineral_scale': ui_text(
+            f"Permeabilità -{diagnosis['perm_loss_pct']:.1f}% e passaggio salino {diagnosis['salt_passage_change_pct']:+.1f}%: compatibile con precipitazione, da confermare con analisi del concentrato.",
+            f"Permeability -{diagnosis['perm_loss_pct']:.1f}% and salt passage {diagnosis['salt_passage_change_pct']:+.1f}%: compatible with precipitation; confirm using concentrate analysis."
+        ),
+        'metal_inorganic': ui_text(
+            f"ΔP {diagnosis['dp_rise_pct']:+.1f}% e passaggio salino {diagnosis['salt_passage_change_pct']:+.1f}%: verificare Fe, Mn e colore del deposito.",
+            f"ΔP {diagnosis['dp_rise_pct']:+.1f}% and salt passage {diagnosis['salt_passage_change_pct']:+.1f}%: check Fe, Mn and deposit colour."
+        ),
+        'integrity_anomaly': ui_text(
+            f"Perdita di reiezione {diagnosis['sr_drop_pp']:.2f} punti percentuali senza un coerente aumento del ΔP può indicare danno, O-ring o sensore.",
+            f"A rejection loss of {diagnosis['sr_drop_pp']:.2f} percentage points without a coherent ΔP rise may indicate damage, an O-ring issue or a sensor fault."
+        ),
+    }
+
+    rows = []
+    for cause, probability in diagnosis['ranked']:
+        rows.append({
+            ui_text("Possibile causa", "Possible cause"): cause_labels[cause],
+            ui_text("Compatibilità", "Compatibility"): f"{probability:.0f}%",
+            ui_text("Evidenza dal trend", "Trend evidence"): evidence_by_cause[cause],
+            ui_text("Lavaggio associato", "Associated cleaning"): cleaning_by_cause[cause],
+        })
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+    chart_rows = list(reversed(diagnosis['ranked']))
+    fig = go.Figure(go.Bar(
+        x=[probability for _, probability in chart_rows],
+        y=[cause_labels[cause] for cause, _ in chart_rows],
+        orientation='h',
+        text=[f"{probability:.0f}%" for _, probability in chart_rows],
+        textposition='auto',
+        marker_color=['#2E8B57' if cause == 'stable' else '#2F6BFF' for cause, _ in chart_rows],
+    ))
+    fig.update_layout(
+        title=ui_text("Compatibilità delle possibili cause", "Compatibility of possible causes"),
+        xaxis_title=ui_text("Punteggio normalizzato (%)", "Normalised score (%)"),
+        xaxis_range=[0, max(100, max(diagnosis['probabilities'].values()) * 1.10)],
+        margin=dict(l=20, r=20, t=55, b=20),
+        height=340,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    cleaning_titles = {
+        'none': ui_text("Nessun CIP consigliato", "No CIP recommended"),
+        'verify_then_plan': ui_text("Confermare i dati e preparare il CIP", "Confirm data and prepare the CIP"),
+        'alkaline': ui_text("CIP basico consigliato", "Alkaline CIP recommended"),
+        'acid': ui_text("CIP acido consigliato", "Acid CIP recommended"),
+        'sequential_alkaline_acid': ui_text("CIP sequenziale: basico → risciacquo → acido", "Sequential CIP: alkaline → rinse → acid"),
+        'integrity_check': ui_text("Prima verificare integrità e strumentazione", "Check integrity and instrumentation first"),
+        'insufficient_data': ui_text("Raccogliere altri dati prima di decidere", "Collect more data before deciding"),
+    }
+    st.markdown(f"### {cleaning_titles[diagnosis['cleaning_code']]}")
+
+    if diagnosis['cleaning_code'] == 'insufficient_data':
+        st.write(ui_text(
+            "Non scegliere il chimico dal solo valore istantaneo. Verificare i sensori e acquisire almeno un giorno di funzionamento stabile con portate, pressioni, temperatura, conducibilità alimento/permeato e recovery coerenti.",
+            "Do not select a cleaner from a single instantaneous value. Verify instruments and acquire at least one stable operating day with consistent flows, pressures, temperature, feed/permeate conductivity and recovery."
+        ))
+    elif diagnosis['cleaning_code'] == 'none':
+        st.write(ui_text(
+            "Mantenere flush con permeato dopo gli arresti, osservare il trend e ricontrollare se uno degli scostamenti supera il preallarme.",
+            "Maintain permeate flushing after shutdowns, monitor the trend and reassess if any deviation crosses the early-warning level."
+        ))
+    elif diagnosis['cleaning_code'] == 'verify_then_plan':
+        st.write(ui_text(
+            "Ripetere il confronto su almeno 24 ore di funzionamento stabile; controllare taratura pressostati/flussimetri, SDI o torbidità, Fe/Mn e microbiologia/ATP. Se il trend è confermato, applicare il tipo di CIP indicato dalle cause più compatibili.",
+            "Repeat the comparison over at least 24 hours of stable operation; check pressure/flow instrument calibration, SDI or turbidity, Fe/Mn and microbiology/ATP. If confirmed, apply the CIP type indicated by the most compatible causes."
+        ))
+    elif diagnosis['cleaning_code'] == 'integrity_check':
+        st.write(ui_text(
+            "Verificare prima conducimetri, campionamento, O-ring/interconnettori, eventuale esposizione a ossidanti e test d'integrità. Un lavaggio non ripara una membrana ossidata o una perdita meccanica.",
+            "First check conductivity instruments, sampling, O-rings/interconnectors, oxidant exposure and membrane integrity. Cleaning cannot repair oxidation damage or a mechanical leak."
+        ))
+    else:
+        if diagnosis['cleaning_code'] == 'alkaline':
+            chemical_step = ui_text(
+                "Usare un detergente/chelante alcalino approvato per rimuovere biofilm, organico e colloidi.",
+                "Use a membrane-approved alkaline detergent/chelating cleaner for biofilm, organics and colloids."
+            )
+        elif diagnosis['cleaning_code'] == 'acid':
+            chemical_step = ui_text(
+                "Usare un detergente acido/chelante approvato (tipicamente a base di acido citrico) per scaling e ossidi metallici.",
+                "Use a membrane-approved acid/chelating cleaner (typically citric-acid based) for scale and metal oxides."
+            )
+        else:
+            chemical_step = ui_text(
+                "Eseguire prima il lavaggio alcalino per biofilm/organico, risciacquare completamente, quindi eseguire il lavaggio acido per precipitato/ossidi.",
+                "Run the alkaline clean first for biofilm/organics, rinse completely, then run the acid clean for precipitate/metal oxides."
+            )
+
+        st.write(chemical_step)
+        with st.expander(ui_text("Procedura operativa indicativa", "Indicative operating procedure"), expanded=True):
+            st.markdown(ui_text(
+                """
+1. Registrare prestazioni normalizzate, pressioni, portate, temperatura, pH e conducibilità prima del CIP.
+2. Fermare la RO e spiazzare alimento/concentrato con permeato o acqua DI priva di durezza, metalli e cloro, a bassa pressione.
+3. Preparare soluzione fresca usando esclusivamente chimico compatibile con marca e modello delle membrane. Rispettare pH, temperatura, concentrazione e tempo del costruttore e della SDS.
+4. Ricircolare a bassa pressione e alta velocità tangenziale, nella direzione normale del flusso. Lasciare sempre il lato permeato aperto a pressione atmosferica.
+5. Alternare ricircolo e ammollo secondo la procedura del fornitore; controllare pH, temperatura, conducibilità e torbidità. Sostituire la soluzione se si satura o il pH deriva sensibilmente.
+6. Scaricare e risciacquare con permeato/DI fino a pH e conducibilità prossimi all'acqua di risciacquo. Non mescolare mai acido e base.
+7. Riavviare gradualmente, inviare il permeato a scarico finché rientra in specifica e confrontare subito le prestazioni normalizzate con il dato pre-CIP e la baseline.
+""",
+                """
+1. Record normalised performance, pressures, flows, temperature, pH and conductivity before the CIP.
+2. Stop the RO and displace feed/concentrate with low-pressure permeate or DI water free of hardness, metals and chlorine.
+3. Prepare a fresh solution using only a cleaner compatible with the membrane make and model. Follow the manufacturer's and SDS limits for pH, temperature, concentration and exposure time.
+4. Recirculate at low pressure and high crossflow in the normal feed direction. Always keep the permeate side open to atmospheric pressure.
+5. Alternate recirculation and soaking according to the supplier procedure; monitor pH, temperature, conductivity and turbidity. Replace the solution if it becomes loaded or pH drifts materially.
+6. Drain and rinse with permeate/DI water until pH and conductivity approach rinse-water values. Never mix acid and caustic solutions.
+7. Restart gradually, divert permeate to drain until it meets specification, and immediately compare normalised post-CIP performance with pre-CIP data and baseline.
+"""
+            ))
+
+    st.info(ui_text(
+        "La dashboard non imposta volutamente concentrazione, pH, temperatura o durata: questi limiti devono essere configurati dopo aver confermato marca/modello delle membrane e il detergente disponibile. Per membrane in poliammide evitare cloro e altri ossidanti salvo esplicita autorizzazione del costruttore.",
+        "The dashboard intentionally does not prescribe concentration, pH, temperature or duration: configure these limits only after confirming the membrane make/model and available cleaner. For polyamide membranes, avoid chlorine and other oxidants unless explicitly authorised by the manufacturer."
+    ))
+
+    with st.expander(ui_text("Soglie e logica usate", "Thresholds and logic used")):
+        st.markdown(ui_text(
+            """
+- **Preallarme:** permeabilità normalizzata -10%, ΔP normalizzato +10% oppure passaggio salino +5%.
+- **CIP da eseguire:** permeabilità normalizzata -15%, ΔP normalizzato +15% oppure passaggio salino +10%.
+- **Basico:** prevalenza di segnali biofilm/organico/colloidale.
+- **Acido:** prevalenza di segnali scaling/precipitato/ossidi metallici.
+- **Sequenziale:** quadro misto o ambiguo; se è plausibile biofilm/organico, la sequenza parte dal basico, con risciacquo completo prima dell'acido.
+""",
+            """
+- **Early warning:** normalised permeability -10%, normalised ΔP +10%, or salt passage +5%.
+- **CIP due:** normalised permeability -15%, normalised ΔP +15%, or salt passage +10%.
+- **Alkaline:** biological/organic/colloidal signals predominate.
+- **Acid:** scaling/precipitate/metal-oxide signals predominate.
+- **Sequential:** mixed or ambiguous profile; when biofilm/organics are plausible, start with alkaline cleaning and rinse completely before acid cleaning.
+"""
+        ))
 
 # =========================================================
 # VISTE: MODULI UI
@@ -676,16 +1128,18 @@ def render_grafici_personalizzati(df_ro, df_uf):
 
 def render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf, latest_uf, config_attuale, impianto_scelto):
     st.header("🔮 Analisi Predittiva e Stato di Salute")
-    L_PERM_RO, L_DPCF01, L_DPRO, L_DP_CALZE, L_TMP_UF = baseline_ro['perm_norm_smooth'] * 0.85, 1.0, baseline_ro['dp_ro_smooth'] * 1.15, 1.0, 1.5
+    dp_predictive_col = 'dp_ro_norm_smooth' if 'dp_ro_norm_smooth' in df_ro.columns else 'dp_ro_smooth'
+    L_PERM_RO, L_DPCF01, L_DPRO, L_DP_CALZE, L_TMP_UF = baseline_ro['perm_norm_smooth'] * 0.85, 1.0, baseline_ro[dp_predictive_col] * 1.15, 1.0, 1.5
     
     g_ro = stima_giorni_rimanenti(df_ro, 'perm_norm_smooth', L_PERM_RO, False)
-    g_dp = stima_giorni_rimanenti(df_ro, 'dp_ro_smooth', L_DPRO, True)
+    g_dp = stima_giorni_rimanenti(df_ro, dp_predictive_col, L_DPRO, True)
     g_cf = stima_giorni_rimanenti(df_ro[df_ro['dp_cf01'] > 0.05].copy(), 'dp_cf01', L_DPCF01)
     df_calze = df_ro[df_ro['pit007'] > 0.05].copy() if config_attuale["has_bag_filters"] and 'pit007' in df_ro.columns else pd.DataFrame()
     g_calze = stima_giorni_rimanenti(df_calze, 'pit007', L_DP_CALZE) if not df_calze.empty else None
     g_uf = stima_giorni_rimanenti(df_uf, 'uftmp', L_TMP_UF) if config_attuale["has_uf"] and not df_uf.empty else None
 
-    tab_labels = ["📊 Cruscotto Salute", "💧 Membrane (Perm)", "🧱 Fouling Spaziatori (ΔP)"]
+    diagnosis_tab_label = ui_text("🧪 Diagnosi & CIP", "🧪 Diagnosis & CIP")
+    tab_labels = ["📊 Cruscotto Salute", diagnosis_tab_label, "💧 Membrane (Perm)", "🧱 Fouling Spaziatori (ΔP)"]
     if config_attuale["has_uf"]: tab_labels.append("🟢 Membrane UF")
     if config_attuale["has_bag_filters"]: tab_labels.append("🧦 Filtri a Calza")
     tab_labels.extend(["🗑️ Cartucce CF01", "⛨ Diagnostica Motori"])
@@ -695,7 +1149,7 @@ def render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf,
     with tab_map["📊 Cruscotto Salute"]:
         cards = [
             ("Membrane RO (ASTM)", get_health_score(latest_ro['perm_norm_smooth'], baseline_ro['perm_norm_smooth'], L_PERM_RO, False), g_ro),
-            ("Spaziatori RO (ΔP)", get_health_score(latest_ro['dp_ro_smooth'], baseline_ro['dp_ro_smooth'], L_DPRO, True), g_dp),
+            (ui_text("Spaziatori RO (ΔP norm.)", "RO spacers (normalised ΔP)"), get_health_score(latest_ro[dp_predictive_col], baseline_ro[dp_predictive_col], L_DPRO, True), g_dp),
             ("Filtro Cartucce CF01", get_health_score(latest_ro['dp_cf01'], baseline_ro['dp_cf01'], L_DPCF01, True), g_cf)
         ]
         if config_attuale["has_uf"]:
@@ -709,6 +1163,9 @@ def render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf,
             col.markdown(f"<h2 style='color:{'green' if score > 70 else ('orange' if score > 30 else 'red')}; margin:0;'>{score:.0f}%</h2>", unsafe_allow_html=True)
             col.caption("Stabile - Nessun intervento" if giorni == 999 else (f"Stimato in: {giorni} giorni" if giorni is not None else "Dati insufficienti"))
             col.progress(int(max(0, min(100, score))))
+
+    with tab_map[diagnosis_tab_label]:
+        render_diagnosi_cip_ro(df_ro, baseline_ro, latest_ro)
 
     with tab_map["💧 Membrane (Perm)"]:
         if g_ro is None: 
@@ -733,7 +1190,7 @@ def render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf,
         else:
             col_a, col_b = st.columns([1, 2])
             with col_a:
-                st.metric("ΔP Attuale", f"{latest_ro['dp_ro_smooth']:.2f} bar", f"{latest_ro['dp_ro_smooth'] - baseline_ro['dp_ro_smooth']:+.2f} bar", delta_color="inverse")
+                st.metric(ui_text("ΔP normalizzato attuale", "Current normalised ΔP"), f"{latest_ro[dp_predictive_col]:.2f} bar", f"{latest_ro[dp_predictive_col] - baseline_ro[dp_predictive_col]:+.2f} bar", delta_color="inverse")
                 
                 if g_dp == 999:
                     st.success("Situazione Idraulica Stabile")
@@ -741,7 +1198,7 @@ def render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf,
                     st.error(f"Lavaggio (CIP) stimato tra **{g_dp}** giorni.")
                     
             with col_b:
-                fig = crea_grafico_previsione(df_ro, 'dp_ro_smooth', 'Previsione Fouling Spaziatori RO', 'ΔP reale (media 24h)', 'Previsione fouling', 30, L_DPRO, 'Limite rischio CIP (+15%)', baseline_ro['dp_ro_smooth'], 'Baseline installazione', 'Salto di pressione (bar)', 'up')
+                fig = crea_grafico_previsione(df_ro, dp_predictive_col, 'Previsione Fouling Spaziatori RO', ui_text('ΔP normalizzato (media 24h)', 'Normalised ΔP (24 h average)'), 'Previsione fouling', 30, L_DPRO, 'Limite rischio CIP (+15%)', baseline_ro[dp_predictive_col], 'Baseline installazione', ui_text('Salto di pressione normalizzato (bar)', 'Normalised pressure drop (bar)'), 'up')
                 if fig: st.plotly_chart(fig, use_container_width=True)
 
     if config_attuale["has_uf"]:
@@ -832,7 +1289,12 @@ def render_confronto(df_ro, df_uf, config_attuale):
     df_merged = pd.merge(df_ro, df_uf, on=['timestamp', 'date_str'], how='outer', suffixes=('_RO', '_UF')) if not df_uf.empty else df_ro.copy()
     df_merged['DataOra'] = pd.to_datetime(df_merged['date_str'])
 
-    metriche_disp = {"Permeabilità Normalizzata (Fouling RO)": "perm_norm_smooth", "Salto di Pressione (ΔP RO)": "dp_ro_smooth", "Reiezione Salina (%)": "sr_norm"}
+    dp_compare_col = "dp_ro_norm_smooth" if "dp_ro_norm_smooth" in df_ro.columns else "dp_ro_smooth"
+    metriche_disp = {
+        "Permeabilità Normalizzata (Fouling RO)": "perm_norm_smooth",
+        ui_text("Salto di Pressione Normalizzato (ΔP RO)", "Normalised pressure drop (RO ΔP)"): dp_compare_col,
+        "Reiezione Salina (%)": "sr_norm"
+    }
     if config_attuale["has_sec"]: metriche_disp["Consumo Specifico (SEC)"] = "sec"
     if config_attuale["has_uf"]: metriche_disp["TMP Ultrafiltrazione"] = "uftmp"
     if config_attuale["has_bag_filters"]: metriche_disp["ΔP Filtri a Calza"] = "pit007"
@@ -1930,13 +2392,14 @@ def genera_report_pdf(impianto_scelto, config_attuale, start_date, end_date, df_
     if not ro_period.empty:
         baseline_ro = ro_all.iloc[0]
         latest_ro = ro_period.iloc[-1]
+        dp_report_col = "dp_ro_norm_smooth" if "dp_ro_norm_smooth" in ro_period.columns else "dp_ro_smooth"
         L_PERM_RO = float(baseline_ro.get("perm_norm_smooth", np.nan)) * 0.85
-        L_DPRO = float(baseline_ro.get("dp_ro_smooth", np.nan)) * 1.15
+        L_DPRO = float(baseline_ro.get(dp_report_col, np.nan)) * 1.15
         L_DPCF01 = 1.0
         asset_rows = [[_r("Asset", "Asset"), _r("Valore attuale", "Current value"), _r("Health score", "Health score"), _r("Stima soglia", "Threshold estimate")]]
         assets = [
             (_r("Membrane RO", "RO membranes"), "perm_norm_smooth", L_PERM_RO, False, ""),
-            (_r("Spaziatori RO", "RO spacers"), "dp_ro_smooth", L_DPRO, True, "bar"),
+            (_r("Spaziatori RO (ΔP norm.)", "RO spacers (normalised ΔP)"), dp_report_col, L_DPRO, True, "bar"),
             (_r("Cartucce CF01", "CF01 cartridges"), "dp_cf01", L_DPCF01, True, "bar"),
         ]
         if config_attuale.get("has_bag_filters") and "pit007" in ro_period.columns:
@@ -2019,9 +2482,10 @@ def genera_report_pdf(impianto_scelto, config_attuale, start_date, end_date, df_
         story.append(PageBreak())
         story.append(Paragraph(_r("Andamento e previsione degli asset RO", "RO asset trends and forecasts"), styles["ReportH1"]))
         baseline_ro = ro_all.iloc[0]
+        dp_report_col = "dp_ro_norm_smooth" if "dp_ro_norm_smooth" in ro_period.columns else "dp_ro_smooth"
         charts = []
         charts.append(_report_chart_trend(ro_period, "perm_norm_smooth", "Permeabilità normalizzata delle membrane RO", "RO membrane normalised permeability", "Permeabilità normalizzata", "Normalised permeability", limit=float(baseline_ro.get("perm_norm_smooth", np.nan)) * 0.85, forecast_days=30, direction="down"))
-        charts.append(_report_chart_trend(ro_period, "dp_ro_smooth", "Salto di pressione delle membrane RO", "RO membrane pressure drop", "ΔP (bar)", "ΔP (bar)", limit=float(baseline_ro.get("dp_ro_smooth", np.nan)) * 1.15, baseline=float(baseline_ro.get("dp_ro_smooth", np.nan)), forecast_days=30, direction="up"))
+        charts.append(_report_chart_trend(ro_period, dp_report_col, "Salto di pressione normalizzato delle membrane RO", "RO membrane normalised pressure drop", "ΔP normalizzato (bar)", "Normalised ΔP (bar)", limit=float(baseline_ro.get(dp_report_col, np.nan)) * 1.15, baseline=float(baseline_ro.get(dp_report_col, np.nan)), forecast_days=30, direction="up"))
         charts.append(_report_chart_trend(ro_period, "dp_cf01", "Intasamento delle cartucce CF01", "CF01 cartridge clogging", "ΔP (bar)", "ΔP (bar)", limit=1.0, baseline=float(baseline_ro.get("dp_cf01", np.nan)), forecast_days=20, direction="up"))
         charts.append(_report_chart_two_percent(ro_period, "recovery", "sr_norm"))
         if config_attuale.get("has_sec") and "sec" in ro_period.columns:
