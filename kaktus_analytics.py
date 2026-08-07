@@ -2829,13 +2829,13 @@ def render_atm(impianto_scelto):
         st.error(f"Errore caricamento dati ATM: {e}")
 
 def valuta_parametro_who(valore, parametro):
-    """Valuta il parametro chimico-fisico rispetto alle linee guida WHO per l'acqua potabile."""
+    """Valuta il parametro chimico-fisico rispetto alle soglie operative configurate."""
     if pd.isna(valore):
         return "⚪", "N/D", "normal"
         
     if parametro == "pH":
-        if 6.5 <= valore <= 8.5: return "🟢", "Ottimale", "normal"
-        elif 6.0 <= valore < 6.5 or 8.5 < valore <= 9.0: return "🟡", "Attenzione", "off"
+        if 6.0 <= valore <= 8.5: return "🟢", "Ottimale", "normal"
+        elif 5.5 <= valore < 6.0 or 8.5 < valore <= 9.0: return "🟡", "Attenzione", "off"
         else: return "🔴", "Critico", "inverse"
         
     elif parametro == "Cloro":
@@ -2851,7 +2851,7 @@ def valuta_parametro_who(valore, parametro):
     return "⚪", "", "normal"
 
 def render_qualita_acqua(impianto_scelto):
-    st.header("💧 Qualità Acqua e Monitoraggio WHO (Manuale)")
+    st.header("💧 Qualità Acqua e Soglie Operative (Manuale)")
     
     # 1. GESTIONE MULTI-IMPIANTO FUTURA
     # Determina il nome della tabella dinamicamente in base all'impianto
@@ -2942,7 +2942,7 @@ def render_qualita_acqua(impianto_scelto):
     # ==========================================
     # 2. GRAFICI DI TREND CON FASCE WHO
     # ==========================================
-    st.subheader("📈 Trend Storico e Limiti WHO")
+    st.subheader("📈 Trend Storico e Soglie Operative")
     
     col_param, col_punti = st.columns(2)
     with col_param:
@@ -2971,12 +2971,14 @@ def render_qualita_acqua(impianto_scelto):
 
     if not df_plot.empty:
         df_plot = df_plot.sort_values('Data')
-        fig = px.line(df_plot, x='Data', y='Valore', color='Punto', markers=True, title=f"Andamento {param_selezionato} rispetto ai limiti WHO")
+        fig = px.line(df_plot, x='Data', y='Valore', color='Punto', markers=True, title=f"Andamento {param_selezionato} rispetto alle soglie operative")
         
-        # Disegno delle fasce di tolleranza WHO dinamiche
+        # Disegno delle fasce operative dinamiche
         if param_selezionato == 'pH':
-            fig.add_hrect(y0=6.5, y1=8.5, line_width=0, fillcolor="green", opacity=0.1, annotation_text="Ottimale")
-            fig.add_hline(y=6.0, line_dash="dash", line_color="red", annotation_text="Critico Minimo")
+            fig.add_hrect(y0=6.0, y1=8.5, line_width=0, fillcolor="green", opacity=0.1, annotation_text="Regolare")
+            fig.add_hrect(y0=5.5, y1=6.0, line_width=0, fillcolor="orange", opacity=0.1, annotation_text="Attenzione")
+            fig.add_hrect(y0=8.5, y1=9.0, line_width=0, fillcolor="orange", opacity=0.1)
+            fig.add_hline(y=5.5, line_dash="dash", line_color="red", annotation_text="Critico Minimo")
             fig.add_hline(y=9.0, line_dash="dash", line_color="red", annotation_text="Critico Massimo")
             fig.update_yaxes(range=[5.0, 10.0])
             
@@ -3213,15 +3215,21 @@ def _plant_overview_summary(impianto_scelto):
         result['cip_diagnosis'] = diagnosis
         if diagnosis['status_code'] in {'cip_due', 'investigate'}:
             result['cip_level'] = 'critical'
-            result['warnings'].append(('critical', ui_text(
-                'CIP/RO: intervento o verifica tecnica richiesti.',
-                'CIP/RO: cleaning or technical investigation required.'
-            )))
+            if diagnosis['status_code'] == 'cip_due':
+                result['warnings'].append(('critical', ui_text(
+                    f"CIP/RO: soglia raggiunta rispetto alla baseline (permeabilità -{diagnosis['perm_loss_pct']:.1f}%, ΔP +{diagnosis['dp_rise_pct']:.1f}%, passaggio salino {diagnosis['salt_passage_change_pct']:+.1f}%).",
+                    f"CIP/RO: threshold reached versus baseline (permeability -{diagnosis['perm_loss_pct']:.1f}%, ΔP +{diagnosis['dp_rise_pct']:.1f}%, salt passage {diagnosis['salt_passage_change_pct']:+.1f}%)."
+                )))
+            else:
+                result['warnings'].append(('critical', ui_text(
+                    'CIP/RO: possibile anomalia d’integrità o idraulica; eseguire una verifica tecnica prima del lavaggio.',
+                    'CIP/RO: possible integrity or hydraulic anomaly; perform a technical check before cleaning.'
+                )))
         elif diagnosis['status_code'] == 'warning':
             result['cip_level'] = 'warning'
             result['warnings'].append(('warning', ui_text(
-                'CIP/RO: soglia di preallarme raggiunta.',
-                'CIP/RO: early-warning threshold reached.'
+                f"CIP/RO: preallarme rispetto alla baseline (permeabilità -{diagnosis['perm_loss_pct']:.1f}%, ΔP +{diagnosis['dp_rise_pct']:.1f}%, passaggio salino {diagnosis['salt_passage_change_pct']:+.1f}%).",
+                f"CIP/RO: early warning versus baseline (permeability -{diagnosis['perm_loss_pct']:.1f}%, ΔP +{diagnosis['dp_rise_pct']:.1f}%, salt passage {diagnosis['salt_passage_change_pct']:+.1f}%)."
             )))
         elif diagnosis['status_code'] == 'normal':
             result['cip_level'] = 'ok'
@@ -3241,13 +3249,6 @@ def _plant_overview_summary(impianto_scelto):
                 'overview_flow_label',
                 config_attuale.get('fit_labels', {}).get(flow_column, flow_column.upper())
             )
-
-        if np.isfinite(result['salt_rejection']) and result['salt_rejection'] < 98.0:
-            level = 'critical' if result['salt_rejection'] < 95.0 else 'warning'
-            result['warnings'].append((level, ui_text(
-                f"Reiezione normalizzata bassa: {result['salt_rejection']:.2f}%.",
-                f"Low normalised rejection: {result['salt_rejection']:.2f}%."
-            )))
 
         if config_attuale.get('has_sec') and 'sec' in latest_ro.index:
             result['specific_label'] = ui_text('Consumo SEC', 'SEC consumption')
