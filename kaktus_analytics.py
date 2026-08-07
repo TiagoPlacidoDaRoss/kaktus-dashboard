@@ -22,6 +22,56 @@ def ui_text(italiano, english):
     """Restituisce testo già localizzato per i nuovi componenti dinamici."""
     return english if UI_LANGUAGE == "en" else italiano
 
+
+FLEET_OVERVIEW_KEY = "__fleet_overview__"
+
+
+def _read_query_value(key, default=None):
+    """Legge un valore URL mantenendo compatibilità con Streamlit 1.30+."""
+    try:
+        value = _RAW_ST.query_params.get(key, default)
+    except (AttributeError, TypeError):
+        try:
+            value = _RAW_ST.experimental_get_query_params().get(key, default)
+        except Exception:
+            return default
+    if isinstance(value, (list, tuple)):
+        return value[-1] if value else default
+    return value
+
+
+def _write_query_values(**updates):
+    """Aggiorna solo i parametri di navigazione senza cancellare gli altri."""
+    clean_updates = {key: str(value) for key, value in updates.items() if value is not None}
+    try:
+        for key, value in clean_updates.items():
+            if str(_RAW_ST.query_params.get(key, "")) != value:
+                _RAW_ST.query_params[key] = value
+        return
+    except (AttributeError, TypeError):
+        pass
+
+    try:
+        current = _RAW_ST.experimental_get_query_params()
+        merged = {
+            key: (value[-1] if isinstance(value, list) and value else value)
+            for key, value in current.items()
+        }
+        if any(str(merged.get(key, "")) != value for key, value in clean_updates.items()):
+            merged.update(clean_updates)
+            _RAW_ST.experimental_set_query_params(**merged)
+    except Exception:
+        # La dashboard resta utilizzabile anche con versioni Streamlit molto vecchie;
+        # in quel caso si perde soltanto la persistenza dopo un hard refresh.
+        return
+
+
+def _safe_rerun():
+    try:
+        _RAW_ST.rerun()
+    except AttributeError:
+        _RAW_ST.experimental_rerun()
+
 _EXACT_TRANSLATIONS = {'N/D': 'N/A', 'Gennaio': 'January', 'Febbraio': 'February', 'Marzo': 'March', 'Aprile': 'April', 'Maggio': 'May', 'Giugno': 'June', 'Luglio': 'July', 'Agosto': 'August', 'Settembre': 'September', 'Ottobre': 'October', 'Novembre': 'November', 'Dicembre': 'December', '🌵 GW012 Kaktus (Capo Verde)': '🌵 GW012 Kaktus (Cape Verde)', '🌴 Pingwe (Zanzibar)': '🌴 Pingwe (Zanzibar)', 'Gestione Flotta': 'Fleet Management', '🌍 Seleziona Impianto:': '🌍 Select plant:', 'Seleziona Area Analisi:': 'Select analysis area:', '🔵 Osmosi Inversa (RO)': '🔵 Reverse Osmosis (RO)', '🟢 Ultrafiltrazione (UF)': '🟢 Ultrafiltration (UF)', '⚡ Inverter & Pompe': '⚡ Inverters & Pumps', '📈 Grafici Personalizzati': '📈 Custom Charts', '🔮 Manutenzione Predittiva': '🔮 Predictive Maintenance', '⚖️ Confronto Periodi': '⚖️ Period Comparison', '📊 Produzione & ATM': '📊 Production & ATM', '☁️ Cloud Supabase': '☁️ Supabase Cloud', '🖥️ Locale SQLite': '🖥️ Local SQLite', 'Recovery': 'Recovery', 'Reiezione (Norm)': 'Rejection (Norm.)', 'ΔP Filtri a Calza': 'Bag-filter ΔP', 'Consumo SEC': 'SEC consumption', 'ΔP Cartuccia CF01': 'CF01 cartridge ΔP', 'ΔP Membrane': 'Membrane ΔP', 'Parametri Acqua (Extra)': 'Water Parameters (Additional)', 'pH Permeato': 'Permeate pH', 'Conducibilità Alimento': 'Feed conductivity', 'Conducibilità Permeato': 'Permeate conductivity', 'Grafici di Tendenza': 'Trend Charts', 'Dati Tabellari ed Esportazione': 'Tabular Data and Export', '📥 Esporta Storico in formato CSV': '📥 Export history as CSV', '📥 Esporta CSV': '📥 Export CSV', 'Nessun dato UF.': 'No UF data.', 'Flusso UF': 'UF flow', 'TMP UF': 'UF TMP', 'ΔP Filtro': 'Filter ΔP', 'Trend Pressioni UF': 'UF pressure trends', 'Nessun dato inverter.': 'No inverter data.', 'Pompa': 'Pump', 'Nome Pompa': 'Pump name', 'Analisi Salute Statore': 'Stator Health Analysis', 'Seleziona pompa per trend Cosφ:': 'Select pump for Cosφ trend:', 'Seleziona Intervallo:': 'Select range:', 'Scegli parametri:': 'Select parameters:', '🔮 Analisi Predittiva e Stato di Salute': '🔮 Predictive Analysis and Health Status', '📊 Cruscotto Salute': '📊 Health Dashboard', '💧 Membrane (Perm)': '💧 Membranes (Permeability)', '🧱 Fouling Spaziatori (ΔP)': '🧱 Spacer Fouling (ΔP)', '🟢 Membrane UF': '🟢 UF Membranes', '🧦 Filtri a Calza': '🧦 Bag Filters', '🗑️ Cartucce CF01': '🗑️ CF01 Cartridges', '⛨ Diagnostica Motori': '⛨ Motor Diagnostics', 'Membrane RO (ASTM)': 'RO membranes (ASTM)', 'Spaziatori RO (ΔP)': 'RO spacers (ΔP)', 'Filtro Cartucce CF01': 'CF01 cartridge filter', 'Membrane UF': 'UF membranes', 'Filtri a Calza': 'Bag filters', 'Stabile - Nessun intervento': 'Stable — No intervention required', 'Dati insufficienti': 'Insufficient data', 'Indice Pulito a 25°C': 'Clean index at 25°C', 'Situazione Stabile': 'Stable condition', 'ΔP Attuale': 'Current ΔP', 'Situazione Idraulica Stabile': 'Stable hydraulic condition', 'Stato Elettrico': 'Electrical status', 'Stato Meccanico': 'Mechanical status', 'Deriva Cosφ (Elettrica)': 'Cosφ drift (Electrical)', 'Degrado A/Hz (Meccanica)': 'A/Hz degradation (Mechanical)', '🔴 Critico': '🔴 Critical', '🟡 Attenzione': '🟡 Warning', '🟢 Ottimale': '🟢 Optimal', 'Seleziona pompa per dettaglio trend storico:': 'Select pump for detailed historical trend:', 'Fattore di potenza': 'Power factor', '⚖️ Analisi Comparativa (A/B Test)': '⚖️ Comparative Analysis (A/B Test)', '📊 Seleziona il Parametro da analizzare:': '📊 Select the parameter to analyse:', 'Date Periodo A:': 'Period A dates:', 'Date Periodo B:': 'Period B dates:', 'Media Periodo A': 'Period A average', 'Media Periodo B': 'Period B average', 'Variazione Percentuale': 'Percentage change', 'Permeabilità Normalizzata (Fouling RO)': 'Normalised permeability (RO fouling)', 'Salto di Pressione (ΔP RO)': 'Pressure drop (RO ΔP)', 'Reiezione Salina (%)': 'Salt rejection (%)', 'Consumo Specifico (SEC)': 'Specific energy consumption (SEC)', 'TMP Ultrafiltrazione': 'Ultrafiltration TMP', '📊 Produzione e vendite ATM': '📊 Production and ATM Sales', 'Mese da analizzare:': 'Month to analyse:', 'Dati da visualizzare nel grafico:': 'Data to display in the chart:', 'Produzione': 'Production', 'Vendite ATM': 'ATM sales', 'Concentrato': 'Concentrate', 'Totale prodotto': 'Total production', 'Totale venduto ATM': 'Total ATM sales', 'Totale concentrato': 'Total concentrate', 'Media giornaliera prodotta': 'Average daily production', 'Media giornaliera venduta': 'Average daily ATM sales', 'Media giornaliera concentrato': 'Average daily concentrate', 'Medie giornaliere per periodo personalizzato': 'Daily averages for a custom period', 'Seleziona il periodo da analizzare:': 'Select the period to analyse:', 'Media produzione nel periodo': 'Average production in the period', 'Media vendite ATM nel periodo': 'Average ATM sales in the period', 'Media concentrato nel periodo': 'Average concentrate in the period', '#### Grafico del periodo selezionato': '#### Selected-period chart', '#### Grafico del mese selezionato': '#### Selected-month chart', 'Riepilogo giornaliero': 'Daily summary', 'Dettaglio produzione PDF': 'PDF production details', 'Dettaglio ATM': 'ATM details', 'Data': 'Date', 'Prodotto (m³)': 'Production (m³)', 'Concentrato (m³)': 'Concentrate (m³)', 'Venduto ATM (L)': 'ATM sales (L)', 'Venduto ATM (m³)': 'ATM sales (m³)', 'data_rif': 'Reference date', 'permeato': 'Permeate', 'concentrato': 'Concentrate', 'insolation': 'Solar irradiation', 'file_origine': 'Source file', 'litri_erogati': 'Dispensed litres', 'atm_id': 'ATM ID', 'atm_litri': 'ATM litres', 'atm_m3': 'ATM m³', '🏢 Telemetria ATM (Distribuito)': '🏢 ATM Telemetry (Distributed)', 'Totale Litri Erogati': 'Total litres dispensed', 'Media Giornaliera': 'Daily average', '📄 Analisi Produzione da PDF': '📄 PDF Production Analysis', 'Totale Permeato': 'Total permeate', 'Media Insolazione': 'Average solar irradiation', 'Flusso Permeato': 'Permeate flow', 'Flusso Concentrato': 'Concentrate flow', 'Flusso Potabile (Uscita)': 'Potable-water flow (Outlet)', 'Pompa HP 1 (RO)': 'HP pump 1 (RO)', 'Pompa HP 2 (RO)': 'HP pump 2 (RO)', 'Pompa HP 3 (RO)': 'HP pump 3 (RO)', 'Pompa HP 4 (RO)': 'HP pump 4 (RO)', 'Pompa Pozzo Kaktus': 'Kaktus well pump', 'Pompa Alimento (RO)': 'RO feed pump', 'Pompa Travaso TK10-3': 'TK10-3 transfer pump', 'Pompa Pozzo Toninho': 'Toninho well pump', 'Pompa Travaso TK11-3': 'TK11-3 transfer pump', 'Pompa Pozzo 1 (P01)': 'Well pump 1 (P01)', 'Pompa Pozzo 2 (P05)': 'Well pump 2 (P05)', 'Pompa ATM Standard': 'Standard ATM pump', 'Pompa ATM Premium': 'Premium ATM pump', 'Pompa Ausiliaria (NAS5)': 'Auxiliary pump (NAS5)', 'Pompa Sconosciuta': 'Unknown pump', 'P. Ingresso (bar)': 'Inlet pressure (bar)', 'P. Uscita (bar)': 'Outlet pressure (bar)', 'Permeato (m³/h)': 'Permeate (m³/h)', 'Portata (m³/h)': 'Flow (m³/h)', 'Pressione (bar)': 'Pressure (bar)', 'Permeabilità (m³/h/bar)': 'Permeability (m³/h/bar)', 'Permeabilità normalizzata': 'Normalised permeability', 'Salto di pressione (bar)': 'Pressure drop (bar)', 'ΔP (bar)': 'ΔP (bar)', 'Volume giornaliero (m³)': 'Daily volume (m³)', 'Dato': 'Data series', 'Baseline': 'Baseline', 'Limite': 'Limit', 'Previsione': 'Forecast', 'Regressione': 'Regression', 'Previsione fouling': 'Fouling forecast', 'Previsione intasamento': 'Clogging forecast', 'Trend reale (media 24h)': 'Actual trend (24 h average)', 'ΔP reale (media 24h)': 'Actual ΔP (24 h average)', 'ΔP reale': 'Actual ΔP', 'TMP reale': 'Actual TMP', 'Limite TMP': 'TMP limit', 'Limite sostituzione': 'Replacement limit', 'Limite CIP (85%)': 'CIP limit (85%)', 'Limite rischio CIP (+15%)': 'CIP risk limit (+15%)', 'Baseline installazione': 'Installation baseline', 'Allarme (-10%)': 'Alarm (-10%)', 'Trend (Media 24h)': 'Trend (24 h average)', 'Dato Orario': 'Hourly data', 'm³/giorno': 'm³/day', 'L/giorno': 'L/day', "💡 **Guida alla Lettura - Osmosi Inversa (RO):**\n    - **Recovery (Recupero):** La percentuale di acqua di alimento trasformata in permeato (acqua dolce).\n    - **Reiezione Salina (Normalizzata):** Indica l'efficienza chimica della membrana nel bloccare i sali, depurata matematicamente dalle fluttuazioni di temperatura. Per calcolarla si usa il fattore $TCF = \\exp\\left[2640 \\cdot \\left(\\frac{1}{298.15} - \\frac{1}{T_{acqua} + 273.15}\\right)\\right]$. Valori ottimali: > 98%.\n    - **Consumo SEC:** Energia Specifica Consumata (kWh/m³). Rappresenta quanta energia è necessaria per produrre un singolo metro cubo di acqua dolce.\n    - **ΔP (Salto di Pressione):** Misura la perdita di carico idraulica tra l'ingresso e l'uscita dei vessel. Un aumento continuo segnala un'ostruzione fisica (fouling, bio-fouling o scaling inorganico).": "💡 **Reading Guide — Reverse Osmosis (RO):**\n    - **Recovery:** The percentage of feedwater converted into permeate (fresh water).\n    - **Normalised salt rejection:** The membrane's efficiency in retaining salts, mathematically corrected for temperature fluctuations. It uses the factor $TCF = \\exp\\left[2640 \\cdot \\left(\\frac{1}{298.15} - \\frac{1}{T_{water} + 273.15}\\right)\\right]$. Recommended values: > 98%.\n    - **SEC consumption:** Specific energy consumption (kWh/m³), indicating the energy required to produce one cubic metre of fresh water.\n    - **ΔP (pressure drop):** The hydraulic pressure loss between vessel inlet and outlet. A continuous increase indicates physical obstruction such as fouling, biofouling or inorganic scaling.", "💡 **Guida alla Lettura - Ultrafiltrazione (UF):**\n    - **TMP (Pressione Trans-Membrana):** È la pressione netta necessaria per forzare l'acqua ad attraversare i pori microscopici (fibre cave) della membrana di pre-trattamento. \n    - **Salute dell'Asset:** Un rapido e continuo aumento della TMP (verso la soglia di guardia di 1.5 bar) indica un intasamento dei pori (fouling irreversibile) o la necessità di rendere i cicli di controlavaggio (Backwash / CEB) più frequenti o aggressivi.": '💡 **Reading Guide — Ultrafiltration (UF):**\n    - **TMP (Transmembrane Pressure):** The net pressure required to force water through the microscopic pores (hollow fibres) of the pretreatment membrane.\n    - **Asset health:** A rapid and continuous rise in TMP towards the 1.5 bar warning threshold indicates pore blockage (irreversible fouling) or the need for more frequent or more intensive backwash/CEB cycles.', "💡 **Guida alla Lettura - Elettromeccanica Inverter:**\n    - **Cosφ (Fattore di Potenza):** Indica l'efficienza magnetica dello statore del motore elettrico. Un calo progressivo o brusco del Cosφ rispetto alla linea di base indica degrado dell'isolamento o possibili cortocircuiti tra le spire avvolte (situazione critica).\n    - **Sforzo Meccanico (A/Hz):** L'indice calcolato dal rapporto tra Corrente assorbita e Frequenza di rete. Un aumento di questo valore indica che la pompa sta chiedendo più Ampere a parità di giri di rotazione: è un forte campanello d'allarme per usura dei cuscinetti, attriti anomali o blocco della girante idraulica.": '💡 **Reading Guide — Inverter Electromechanics:**\n    - **Cosφ (power factor):** Indicates the magnetic efficiency of the electric motor stator. A gradual or sudden decrease from the baseline may indicate insulation degradation or possible turn-to-turn short circuits.\n    - **Mechanical load (A/Hz):** The ratio between current draw and operating frequency. An increase means the pump requires more current at the same speed, which may indicate bearing wear, abnormal friction or impeller blockage.', "💡 **Guida alla Lettura - Troubleshooting ed Esplorazione Libera:**\n    Questa sezione non impone regole predefinite o calcoli automatici. Puoi sovrapporre liberamente qualsiasi parametro (idraulico, chimico o elettrico) memorizzato nel database per identificare correlazioni anomale non ovvie (ad esempio: misurare in quale misura un picco di pressione dell'alimento influenza il consumo elettrico SEC). È lo strumento ideale per la *Root Cause Analysis* in caso di anomalie di sistema.": '💡 **Reading Guide — Troubleshooting and Free Exploration:**\n    This section applies no predefined rules or automatic calculations. You can freely overlay any hydraulic, chemical or electrical parameter stored in the database to identify non-obvious abnormal correlations, such as how a feed-pressure spike affects SEC. It is designed for *Root Cause Analysis* when system anomalies occur.', '💡 **Guida alla Lettura - Modello Predittivo:**\n    - **Health Score (%):** Un indicatore compreso tra 0 e 100 che rappresenta la "vita utile residua" dell\'asset prima di dover effettuare una manutenzione correttiva.\n    - **Come calcoliamo le date:** Il sistema utilizza un algoritmo di **Regressione Lineare** (usando l\'equazione $y = mx + q$) che elabora la tendenza dei dati storici. Quando la retta di regressione tracciata dal modello interseca i limiti ingegneristici predefiniti (ad esempio: una perdita del 15% sulla permeabilità iniziale), il sistema stima in modo proattivo i giorni rimanenti al lavaggio (CIP) o alla sostituzione.': "💡 **Reading Guide — Predictive Model:**\n    - **Health Score (%):** An indicator from 0 to 100 representing the asset's estimated remaining useful condition before corrective maintenance is required.\n    - **How dates are calculated:** The system uses a **linear regression** algorithm ($y = mx + q$) to evaluate the historical trend. When the regression line intersects a predefined engineering limit, such as a 15% loss of initial permeability, it estimates the remaining time before CIP or replacement.", '💡 **Guida alla Lettura - Analisi Comparativa (A/B Test e Box Plot):**\n    - **La "Scatola" (Box):** Rappresenta visivamente il 50% centrale delle letture di quel periodo (il range di funzionamento "normale"). Se la scatola si "allarga" molto, l\'impianto sta soffrendo di instabilità idraulica.\n    - **La Mediana (linea centrale):** È il valore medio effettivo di funzionamento. Se la mediana del Periodo B è palesemente disallineata da quella del Periodo A, significa che l\'impianto ha subito una deviazione strutturale (es. dopo aver cambiato le cartucce o eseguito un CIP).\n    - **I Puntini (Outliers):** Identificano singoli campioni anomali, fuori scala rispetto al normale ciclo produttivo (ad esempio: colpi d\'ariete, partenze repentine dell\'inverter). Più puntini vedi, più l\'infrastruttura ha subito shock termici o idraulici.': '💡 **Reading Guide — Comparative Analysis (A/B Test and Box Plot):**\n    - **The box:** Represents the central 50% of the readings in the period, corresponding to the normal operating range. A much wider box indicates greater hydraulic instability.\n    - **The median:** The central operating value. A clear shift in Period B compared with Period A indicates a structural change, such as after cartridge replacement or CIP.\n    - **Outliers:** Individual samples outside the normal operating distribution, such as water hammer or abrupt inverter starts. More outliers indicate more frequent hydraulic or thermal shocks.'}
 
 
@@ -388,12 +438,11 @@ def normalizza_dataframe(df):
 
 @st.cache_data(ttl=300) 
 def load_water_quality_data(impianto_scelto):
-    if "Kaktus" not in impianto_scelto:
-        return pd.DataFrame()
     try:
         from supabase import create_client
         supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-        res = supabase.table("misurazioni_kaktus").select("*").execute()
+        nome_impianto = "kaktus" if "Kaktus" in impianto_scelto else "pingwe"
+        res = supabase.table(f"misurazioni_{nome_impianto}").select("*").execute()
         df = pd.DataFrame(res.data)
         if df.empty: return df
         
@@ -2893,11 +2942,26 @@ def render_qualita_acqua(impianto_scelto):
     
     col_param, col_punti = st.columns(2)
     with col_param:
-        param_selezionato = st.selectbox("Seleziona il parametro da analizzare:", ['pH', 'Cloro', 'Conducibilità', 'Temperatura'])
+        parametri_qualita = ['pH', 'Cloro', 'Conducibilità', 'Temperatura']
+        param_selezionato = st.selectbox(
+            "Seleziona il parametro da analizzare:",
+            parametri_qualita,
+            index=parametri_qualita.index('Cloro'),
+            key="water_quality_parameter",
+        )
     with col_punti:
         tutti_punti = sorted(df_storico['Punto'].unique())
-        default_punto = ["Tk11"] if "Tk11" in tutti_punti else [tutti_punti[0]]
-        punti_selezionati = st.multiselect("Seleziona i punti di campionamento:", tutti_punti, default=default_punto)
+        punti_atm_default = [
+            punto for punto in tutti_punti
+            if re.sub(r'[^A-Za-z0-9]+', '', str(punto)).upper() in {'ATM1', 'ATM2'}
+        ]
+        default_punti = punti_atm_default or (["Tk11"] if "Tk11" in tutti_punti else [tutti_punti[0]])
+        punti_selezionati = st.multiselect(
+            "Seleziona i punti di campionamento:",
+            tutti_punti,
+            default=default_punti,
+            key="water_quality_sampling_points",
+        )
 
     df_plot = df_storico[(df_storico['Parametro'] == param_selezionato) & (df_storico['Punto'].isin(punti_selezionati))]
 
@@ -2965,78 +3029,490 @@ def render_qualita_acqua(impianto_scelto):
         else:
             st.info("Nessuna firma disponibile.")
 
+
+def _latest_telemetry_timestamp(*frames):
+    latest_values = []
+    for frame in frames:
+        if frame is None or frame.empty:
+            continue
+        if 'date_str' in frame.columns:
+            dates = pd.to_datetime(frame['date_str'], errors='coerce', utc=True).dropna()
+        elif 'timestamp' in frame.columns:
+            dates = pd.to_datetime(pd.to_numeric(frame['timestamp'], errors='coerce'), unit='s', errors='coerce', utc=True).dropna()
+        else:
+            continue
+        if not dates.empty:
+            latest_values.append(dates.max())
+    return max(latest_values) if latest_values else pd.NaT
+
+
+def _telemetry_age_hours(timestamp):
+    if pd.isna(timestamp):
+        return np.inf
+    return max(0.0, (pd.Timestamp.now(tz='UTC') - timestamp).total_seconds() / 3600.0)
+
+
+def _motor_health_summary(df_nas, config_attuale, impianto_scelto):
+    result = {'level': 'unknown', 'checked': 0, 'warning_count': 0, 'critical_count': 0, 'messages': []}
+    required = {'nas_id', 'freq', 'current', 'cosphi'}
+    if df_nas is None or df_nas.empty or not required.issubset(df_nas.columns):
+        return result
+
+    install_dates = PUMP_INSTALL_DATES.get(impianto_scelto, {})
+    for nas_id, pump_name in config_attuale.get('inverters', {}).items():
+        pump_data = df_nas[df_nas['nas_id'] == nas_id].copy()
+        if nas_id in install_dates:
+            install_date = pd.to_datetime(install_dates[nas_id], errors='coerce')
+            if pd.notna(install_date):
+                pump_data = pump_data[pd.to_datetime(pump_data['date_str'], errors='coerce') >= install_date]
+
+        pump_data['freq_num'] = pd.to_numeric(pump_data['freq'], errors='coerce')
+        pump_data['current_num'] = pd.to_numeric(pump_data['current'], errors='coerce')
+        pump_data['cosphi_num'] = pd.to_numeric(pump_data['cosphi'], errors='coerce')
+        pump_data = pump_data[
+            (pump_data['freq_num'] > 10)
+            & pump_data['current_num'].notna()
+            & pump_data['cosphi_num'].notna()
+        ]
+        if len(pump_data) < 3:
+            continue
+
+        torque_index = pump_data['current_num'] / pump_data['freq_num']
+        base_idx, latest_idx = torque_index.iloc[:3].mean(), torque_index.iloc[-3:].mean()
+        base_cos, latest_cos = pump_data['cosphi_num'].iloc[:3].mean(), pump_data['cosphi_num'].iloc[-3:].mean()
+        if not all(np.isfinite(value) and value > 0 for value in [base_idx, latest_idx, base_cos, latest_cos]):
+            continue
+
+        result['checked'] += 1
+        mechanical_drift = (latest_idx - base_idx) / base_idx * 100.0
+        electrical_drift = (latest_cos - base_cos) / base_cos * 100.0
+        is_critical = mechanical_drift > 15.0 or electrical_drift < -10.0
+        is_warning = mechanical_drift > 8.0 or electrical_drift < -5.0
+
+        if is_critical:
+            result['critical_count'] += 1
+            result['messages'].append(ui_text(
+                f"{pump_name}: deriva critica (A/Hz {mechanical_drift:+.1f}%, Cosφ {electrical_drift:+.1f}%).",
+                f"{pump_name}: critical drift (A/Hz {mechanical_drift:+.1f}%, power factor {electrical_drift:+.1f}%)."
+            ))
+        elif is_warning:
+            result['warning_count'] += 1
+            result['messages'].append(ui_text(
+                f"{pump_name}: attenzione (A/Hz {mechanical_drift:+.1f}%, Cosφ {electrical_drift:+.1f}%).",
+                f"{pump_name}: warning (A/Hz {mechanical_drift:+.1f}%, power factor {electrical_drift:+.1f}%)."
+            ))
+
+    if result['critical_count']:
+        result['level'] = 'critical'
+    elif result['warning_count']:
+        result['level'] = 'warning'
+    elif result['checked']:
+        result['level'] = 'ok'
+    return result
+
+
+def _water_quality_summary(impianto_scelto):
+    quality = load_water_quality_data(impianto_scelto)
+    result = {'level': 'unknown', 'date': pd.NaT, 'checked': 0, 'messages': []}
+    required = {'_report_date', 'Punto', 'Parametro', 'Valore'}
+    if quality is None or quality.empty or not required.issubset(quality.columns):
+        return result
+
+    quality = quality.copy()
+    quality['_report_date'] = pd.to_datetime(quality['_report_date'], errors='coerce')
+    quality['Valore'] = pd.to_numeric(quality['Valore'], errors='coerce')
+    quality = quality.dropna(subset=['_report_date', 'Valore'])
+    if quality.empty:
+        return result
+
+    result['date'] = quality['_report_date'].max()
+    latest = quality[quality['_report_date'] == result['date']]
+    parameter_map = {
+        'ph': ('pH', ''),
+        'cl': ('Cloro', 'mg/L'),
+        'cond': ('Conducibilità', 'µS/cm'),
+    }
+    worst_level = 'ok'
+    for _, row in latest.iterrows():
+        raw_parameter = str(row['Parametro']).strip().lower()
+        if raw_parameter not in parameter_map:
+            continue
+        parameter, unit = parameter_map[raw_parameter]
+        value = float(row['Valore'])
+        _, status, _ = valuta_parametro_who(value, parameter)
+        result['checked'] += 1
+        if status == 'Critico':
+            worst_level = 'critical'
+        elif status == 'Attenzione' and worst_level != 'critical':
+            worst_level = 'warning'
+        else:
+            continue
+        formatted_value = f"{value:.2f}" if parameter != 'Conducibilità' else f"{value:.0f}"
+        result['messages'].append(ui_text(
+            f"{row['Punto']} – {parameter}: {formatted_value} {unit} ({status.lower()}).",
+            f"{row['Punto']} – {parameter}: {formatted_value} {unit} ({'critical' if status == 'Critico' else 'warning'})."
+        ))
+
+    if result['checked']:
+        result['level'] = worst_level
+    return result
+
+
+def _plant_overview_summary(impianto_scelto):
+    config_attuale = CONFIG_IMPIANTI[impianto_scelto]
+    df_ro_raw, df_uf, df_nas, source_msg = load_data(impianto_scelto)
+    result = {
+        'plant': impianto_scelto,
+        'config': config_attuale,
+        'source': source_msg,
+        'warnings': [],
+        'overall_level': 'unknown',
+        'telemetry_level': 'unknown',
+        'cip_level': 'unknown',
+        'motor_level': 'unknown',
+        'quality_level': 'unknown',
+        # La freschezza della flotta è riferita alla telemetria di processo RO:
+        # un pacchetto NAS recente non deve mascherare una RO ferma/offline.
+        'latest_timestamp': _latest_telemetry_timestamp(df_ro_raw),
+        'age_hours': np.inf,
+        'main_flow': np.nan,
+        'main_flow_label': ui_text('Portata principale', 'Main flow'),
+        'recovery': np.nan,
+        'salt_rejection': np.nan,
+        'specific_value': np.nan,
+        'specific_label': ui_text('KPI impianto', 'Plant KPI'),
+        'specific_unit': '',
+    }
+    result['age_hours'] = _telemetry_age_hours(result['latest_timestamp'])
+    if not np.isfinite(result['age_hours']):
+        result['telemetry_level'] = 'critical'
+        result['warnings'].append(('critical', ui_text('Telemetria non disponibile.', 'Telemetry unavailable.')))
+    elif result['age_hours'] > 24:
+        result['telemetry_level'] = 'critical'
+        result['warnings'].append(('critical', ui_text(
+            f"Nessun dato aggiornato da {result['age_hours'] / 24:.1f} giorni.",
+            f"No fresh data for {result['age_hours'] / 24:.1f} days."
+        )))
+    elif result['age_hours'] > 6:
+        result['telemetry_level'] = 'warning'
+        result['warnings'].append(('warning', ui_text(
+            f"Ultimo dato ricevuto {result['age_hours']:.1f} ore fa.",
+            f"Latest data received {result['age_hours']:.1f} hours ago."
+        )))
+    else:
+        result['telemetry_level'] = 'ok'
+
+    df_ro = calcola_metriche_derivate(df_ro_raw) if df_ro_raw is not None and not df_ro_raw.empty else pd.DataFrame()
+    if not df_ro.empty:
+        baseline_ro, latest_ro = df_ro.iloc[0], df_ro.iloc[-1]
+        diagnosis = diagnostica_cip_ro(df_ro, baseline_ro, latest_ro)
+        result['cip_diagnosis'] = diagnosis
+        if diagnosis['status_code'] in {'cip_due', 'investigate'}:
+            result['cip_level'] = 'critical'
+            result['warnings'].append(('critical', ui_text(
+                'CIP/RO: intervento o verifica tecnica richiesti.',
+                'CIP/RO: cleaning or technical investigation required.'
+            )))
+        elif diagnosis['status_code'] == 'warning':
+            result['cip_level'] = 'warning'
+            result['warnings'].append(('warning', ui_text(
+                'CIP/RO: soglia di preallarme raggiunta.',
+                'CIP/RO: early-warning threshold reached.'
+            )))
+        elif diagnosis['status_code'] == 'normal':
+            result['cip_level'] = 'ok'
+
+        result['recovery'] = _finite_float(latest_ro.get('recovery'))
+        result['salt_rejection'] = _finite_float(latest_ro.get('sr_norm'))
+        flow_candidates = list(config_attuale.get('fit_labels', {}).keys())
+        flow_column = next((column for column in flow_candidates if column in latest_ro.index), None)
+        if flow_column:
+            result['main_flow'] = _finite_float(latest_ro.get(flow_column))
+            result['main_flow_label'] = config_attuale.get('fit_labels', {}).get(flow_column, flow_column.upper())
+
+        if np.isfinite(result['salt_rejection']) and result['salt_rejection'] < 98.0:
+            level = 'critical' if result['salt_rejection'] < 95.0 else 'warning'
+            result['warnings'].append((level, ui_text(
+                f"Reiezione normalizzata bassa: {result['salt_rejection']:.2f}%.",
+                f"Low normalised rejection: {result['salt_rejection']:.2f}%."
+            )))
+
+        if config_attuale.get('has_sec') and 'sec' in latest_ro.index:
+            result['specific_label'] = ui_text('Consumo SEC', 'SEC consumption')
+            result['specific_value'] = _finite_float(latest_ro.get('sec'))
+            result['specific_unit'] = 'kWh/m³'
+        elif config_attuale.get('has_bag_filters') and 'pit007' in latest_ro.index:
+            result['specific_label'] = ui_text('ΔP filtri a calza', 'Bag-filter ΔP')
+            result['specific_value'] = _finite_float(latest_ro.get('pit007'))
+            result['specific_unit'] = 'bar'
+            if np.isfinite(result['specific_value']) and result['specific_value'] >= 1.0:
+                result['warnings'].append(('critical', ui_text(
+                    f"Filtri a calza da verificare: ΔP {result['specific_value']:.2f} bar.",
+                    f"Check bag filters: ΔP {result['specific_value']:.2f} bar."
+                )))
+
+        dp_cf01 = _finite_float(latest_ro.get('dp_cf01'))
+        if np.isfinite(dp_cf01) and dp_cf01 >= 1.0:
+            result['warnings'].append(('critical', ui_text(
+                f"Cartuccia CF01 a limite: ΔP {dp_cf01:.2f} bar.",
+                f"CF01 cartridge at limit: ΔP {dp_cf01:.2f} bar."
+            )))
+
+    if config_attuale.get('has_uf') and df_uf is not None and not df_uf.empty and 'uftmp' in df_uf.columns:
+        latest_tmp = _finite_float(df_uf.iloc[-1].get('uftmp'))
+        if np.isfinite(latest_tmp):
+            if not np.isfinite(result['specific_value']):
+                result['specific_label'] = ui_text('TMP UF', 'UF TMP')
+                result['specific_value'] = latest_tmp
+                result['specific_unit'] = 'bar'
+            if latest_tmp >= 1.5:
+                result['warnings'].append(('critical', ui_text(
+                    f"TMP UF oltre limite: {latest_tmp:.2f} bar.",
+                    f"UF TMP above limit: {latest_tmp:.2f} bar."
+                )))
+            elif latest_tmp >= 1.2:
+                result['warnings'].append(('warning', ui_text(
+                    f"TMP UF in aumento: {latest_tmp:.2f} bar.",
+                    f"UF TMP rising: {latest_tmp:.2f} bar."
+                )))
+
+    motor_summary = _motor_health_summary(df_nas, config_attuale, impianto_scelto)
+    result['motor_summary'] = motor_summary
+    result['motor_level'] = motor_summary['level']
+    for message in motor_summary['messages']:
+        level = 'critical' if motor_summary['level'] == 'critical' and 'crit' in message.lower() else 'warning'
+        result['warnings'].append((level, message))
+
+    quality_summary = _water_quality_summary(impianto_scelto)
+    result['quality_summary'] = quality_summary
+    result['quality_level'] = quality_summary['level']
+    for message in quality_summary['messages']:
+        level = 'critical' if quality_summary['level'] == 'critical' and ('critic' in message.lower() or 'critico' in message.lower()) else 'warning'
+        result['warnings'].append((level, message))
+
+    levels = [result['telemetry_level'], result['cip_level'], result['motor_level'], result['quality_level']]
+    warning_levels = [level for level, _ in result['warnings']]
+    if 'critical' in warning_levels or 'critical' in levels:
+        result['overall_level'] = 'critical'
+    elif 'warning' in warning_levels or 'warning' in levels:
+        result['overall_level'] = 'warning'
+    elif any(level == 'ok' for level in levels):
+        result['overall_level'] = 'ok'
+    return result
+
+
+def _status_display(level):
+    displays = {
+        'ok': ('🟢', ui_text('Regolare', 'Normal')),
+        'warning': ('🟡', ui_text('Attenzione', 'Warning')),
+        'critical': ('🔴', ui_text('Critico', 'Critical')),
+        'unknown': ('⚪', ui_text('N/D', 'N/A')),
+    }
+    return displays.get(level, displays['unknown'])
+
+
+def _format_last_update(summary):
+    if pd.isna(summary['latest_timestamp']):
+        return ui_text('N/D', 'N/A')
+    age = summary['age_hours']
+    if age < 1:
+        return ui_text(f"{age * 60:.0f} min fa", f"{age * 60:.0f} min ago")
+    if age < 24:
+        return ui_text(f"{age:.1f} h fa", f"{age:.1f} h ago")
+    return ui_text(f"{age / 24:.1f} giorni fa", f"{age / 24:.1f} days ago")
+
+
+def render_fleet_overview():
+    st.title(ui_text('Panoramica di tutti gli impianti', 'All-plants overview'))
+    st.caption(ui_text(
+        'Stato sintetico di telemetria, membrane/CIP, pompe-motori, processo e qualità dell’acqua.',
+        'At-a-glance status for telemetry, membranes/CIP, pumps and motors, process and water quality.'
+    ))
+
+    with _RAW_ST.spinner(ui_text('Aggiornamento dati della flotta...', 'Refreshing fleet data...')):
+        summaries = [_plant_overview_summary(plant) for plant in CONFIG_IMPIANTI]
+
+    total_warnings = sum(len(summary['warnings']) for summary in summaries)
+    online_count = sum(summary['telemetry_level'] == 'ok' for summary in summaries)
+    warning_plants = sum(summary['overall_level'] == 'warning' for summary in summaries)
+    critical_plants = sum(summary['overall_level'] == 'critical' for summary in summaries)
+
+    a, b, c, d, e = st.columns(5)
+    a.metric(ui_text('Impianti totali', 'Total plants'), len(summaries))
+    b.metric(ui_text('Online', 'Online'), online_count)
+    c.metric(ui_text('In attenzione', 'Warning'), warning_plants)
+    d.metric(ui_text('Critici', 'Critical'), critical_plants)
+    e.metric(ui_text('Segnalazioni attive', 'Active alerts'), total_warnings)
+    st.markdown('---')
+
+    for summary in summaries:
+        with st.container(border=True):
+            status_icon, status_label = _status_display(summary['overall_level'])
+            header_col, button_col = st.columns([5, 1])
+            with header_col:
+                st.subheader(f"{summary['plant']} — {status_icon} {status_label}")
+            with button_col:
+                if st.button(
+                    ui_text('Apri dettaglio', 'Open details'),
+                    key=f"open_{re.sub(r'[^A-Za-z0-9]+', '_', summary['plant'])}",
+                    use_container_width=True,
+                ):
+                    # La nuova selezione verrà inizializzata dall'URL al rerun;
+                    # eliminiamo i valori widget correnti per evitare conflitti.
+                    _RAW_ST.session_state.pop('nav_plant', None)
+                    _RAW_ST.session_state.pop('nav_section', None)
+                    _write_query_values(plant=summary['plant'], section='🔵 Osmosi Inversa (RO)')
+                    _safe_rerun()
+
+            state_cols = st.columns(4)
+            quality_date = summary.get('quality_summary', {}).get('date', pd.NaT)
+            quality_detail = (
+                ui_text(
+                    f"Campione: {quality_date.strftime('%d/%m/%Y')}",
+                    f"Sample: {quality_date.strftime('%d/%m/%Y')}"
+                )
+                if pd.notna(quality_date) else ''
+            )
+            status_items = [
+                (ui_text('Telemetria', 'Telemetry'), summary['telemetry_level'], _format_last_update(summary)),
+                (ui_text('Membrane / CIP', 'Membranes / CIP'), summary['cip_level'], ''),
+                (ui_text('Pompe / motori', 'Pumps / motors'), summary['motor_level'], ''),
+                (ui_text('Qualità acqua', 'Water quality'), summary['quality_level'], quality_detail),
+            ]
+            for column, (label, level, detail) in zip(state_cols, status_items):
+                icon, state_label = _status_display(level)
+                column.markdown(f"**{label}**")
+                column.write(f"{icon} {state_label}")
+                if detail:
+                    column.caption(detail)
+
+            kpi_cols = st.columns(4)
+            flow_value = f"{summary['main_flow']:.2f} m³/h" if np.isfinite(summary['main_flow']) else ui_text('N/D', 'N/A')
+            recovery_value = f"{summary['recovery']:.1f}%" if np.isfinite(summary['recovery']) else ui_text('N/D', 'N/A')
+            rejection_value = f"{summary['salt_rejection']:.2f}%" if np.isfinite(summary['salt_rejection']) else ui_text('N/D', 'N/A')
+            specific_value = (
+                f"{summary['specific_value']:.2f} {summary['specific_unit']}".strip()
+                if np.isfinite(summary['specific_value']) else ui_text('N/D', 'N/A')
+            )
+            kpi_cols[0].metric(summary['main_flow_label'], flow_value)
+            kpi_cols[1].metric('Recovery', recovery_value)
+            kpi_cols[2].metric(ui_text('Reiezione normalizzata', 'Normalised rejection'), rejection_value)
+            kpi_cols[3].metric(summary['specific_label'], specific_value)
+
+            if summary['warnings']:
+                with st.expander(ui_text(
+                    f"Segnalazioni attive ({len(summary['warnings'])})",
+                    f"Active alerts ({len(summary['warnings'])})"
+                ), expanded=summary['overall_level'] == 'critical'):
+                    for level, message in summary['warnings']:
+                        st.markdown(f"{'🔴' if level == 'critical' else '🟡'} {message}")
+            else:
+                st.success(ui_text('Nessuna segnalazione attiva.', 'No active alerts.'))
+
 # =========================================================
 # MAIN DASHBOARD ENTRY POINT
 # =========================================================
 if __name__ == '__main__':
     _RAW_ST.set_page_config(page_title="Water Partners Fleet Management", layout="wide")
 
+    saved_language = _read_query_value('lang', 'it')
     english_enabled = _RAW_ST.sidebar.toggle(
         "🇬🇧 English",
-        value=False,
+        value=saved_language == 'en',
         key="dashboard_language_english",
         help="Activate the English interface / Attiva l'interfaccia inglese"
     )
     UI_LANGUAGE = "en" if english_enabled else "it"
+    _write_query_values(lang=UI_LANGUAGE)
     st = _TranslatedStreamlit(_RAW_ST)
 
     st.sidebar.image("https://img.icons8.com/color/96/000000/globe.png", width=60)
     st.sidebar.title("Gestione Flotta")
-    
-    impianto_scelto = st.sidebar.selectbox("🌍 Seleziona Impianto:", list(CONFIG_IMPIANTI.keys()))
-    config_attuale = CONFIG_IMPIANTI[impianto_scelto]
 
-    menu_opzioni = ["🔵 Osmosi Inversa (RO)", "⚡ Inverter & Pompe", "📈 Grafici Personalizzati", 
-                    "🔮 Manutenzione Predittiva", "⚖️ Confronto Periodi", "📊 Produzione & ATM", "💧 Qualità Acqua (Manuale)", "📄 Report"]
-    if config_attuale["has_uf"]: 
-        menu_opzioni.insert(1, "🟢 Ultrafiltrazione (UF)")
-        
-    sezione_selezionata = st.sidebar.radio("Seleziona Area Analisi:", menu_opzioni)
-    
-    df_ro_raw, df_uf, df_nas, source_msg = load_data(impianto_scelto)
-    st.sidebar.markdown("---")
-    st.sidebar.caption(f"Origine Dati: {source_msg}")
+    plant_options = [FLEET_OVERVIEW_KEY] + list(CONFIG_IMPIANTI.keys())
+    saved_plant = _read_query_value('plant', FLEET_OVERVIEW_KEY)
+    if saved_plant not in plant_options:
+        saved_plant = FLEET_OVERVIEW_KEY
+    if 'nav_plant' in _RAW_ST.session_state and _RAW_ST.session_state['nav_plant'] not in plant_options:
+        del _RAW_ST.session_state['nav_plant']
 
-    st.title(f"Sistema di Monitoraggio - {impianto_scelto[2:]}")
+    def format_plant_option(option):
+        if option == FLEET_OVERVIEW_KEY:
+            return ui_text('🌐 Tutti gli impianti', '🌐 All plants')
+        return tr_text(option)
 
-    if sezione_selezionata == "📊 Produzione & ATM":
-        render_produzione_atm(impianto_scelto)
+    plant_widget_kwargs = {'format_func': format_plant_option, 'key': 'nav_plant'}
+    if 'nav_plant' not in _RAW_ST.session_state:
+        plant_widget_kwargs['index'] = plant_options.index(saved_plant)
+    impianto_scelto = st.sidebar.selectbox("🌍 Seleziona Impianto:", plant_options, **plant_widget_kwargs)
+    _write_query_values(plant=impianto_scelto)
 
-    # --- NUOVA SEZIONE ---
-    elif sezione_selezionata == "💧 Qualità Acqua (Manuale)":
-        render_qualita_acqua(impianto_scelto)
-    # ---------------------
-
-    elif sezione_selezionata == "📄 Report":
-        render_report(impianto_scelto, config_attuale, df_ro_raw, df_uf, df_nas)
-
-    elif df_ro_raw.empty:
-        st.info(f"Nessun dato registrato per {impianto_scelto}. In attesa dei log...")
-
+    if impianto_scelto == FLEET_OVERVIEW_KEY:
+        st.sidebar.markdown('---')
+        st.sidebar.caption(ui_text('Vista riepilogativa della flotta', 'Fleet overview'))
+        render_fleet_overview()
     else:
-        df_ro = calcola_metriche_derivate(df_ro_raw)
-        latest_ro, baseline_ro = df_ro.iloc[-1], df_ro.iloc[0]
-        latest_uf, baseline_uf = (
-            (df_uf.iloc[-1], df_uf.iloc[0])
-            if config_attuale["has_uf"] and not df_uf.empty
-            else (
-                pd.Series({"fit001": 0.0, "uftmp": 0.0, "dpscf": 0.0}),
-                pd.Series({"fit001": 0.0, "uftmp": 0.0, "dpscf": 0.0})
-            )
-        )
+        config_attuale = CONFIG_IMPIANTI[impianto_scelto]
 
-        if sezione_selezionata == "🔵 Osmosi Inversa (RO)":
-            render_osmosi(df_ro, baseline_ro, latest_ro, config_attuale, impianto_scelto)
-        elif sezione_selezionata == "🟢 Ultrafiltrazione (UF)":
-            render_uf(df_uf, baseline_uf, latest_uf, impianto_scelto)
-        elif sezione_selezionata == "⚡ Inverter & Pompe":
-            render_inverter(df_nas, config_attuale, impianto_scelto)
-        elif sezione_selezionata == "📈 Grafici Personalizzati":
-            render_grafici_personalizzati(df_ro, df_uf)
-        elif sezione_selezionata == "🔮 Manutenzione Predittiva":
-            render_predittiva(
-                df_ro, df_uf, df_nas, baseline_ro, latest_ro,
-                baseline_uf, latest_uf, config_attuale, impianto_scelto
+        menu_opzioni = ["🔵 Osmosi Inversa (RO)", "⚡ Inverter & Pompe", "📈 Grafici Personalizzati", 
+                        "🔮 Manutenzione Predittiva", "⚖️ Confronto Periodi", "📊 Produzione & ATM", "💧 Qualità Acqua (Manuale)", "📄 Report"]
+        if config_attuale["has_uf"]: 
+            menu_opzioni.insert(1, "🟢 Ultrafiltrazione (UF)")
+
+        saved_section = _read_query_value('section', menu_opzioni[0])
+        if saved_section not in menu_opzioni:
+            saved_section = menu_opzioni[0]
+        if 'nav_section' in _RAW_ST.session_state and _RAW_ST.session_state['nav_section'] not in menu_opzioni:
+            del _RAW_ST.session_state['nav_section']
+
+        section_widget_kwargs = {'key': 'nav_section'}
+        if 'nav_section' not in _RAW_ST.session_state:
+            section_widget_kwargs['index'] = menu_opzioni.index(saved_section)
+        sezione_selezionata = st.sidebar.radio("Seleziona Area Analisi:", menu_opzioni, **section_widget_kwargs)
+        _write_query_values(plant=impianto_scelto, section=sezione_selezionata)
+
+        df_ro_raw, df_uf, df_nas, source_msg = load_data(impianto_scelto)
+        st.sidebar.markdown("---")
+        st.sidebar.caption(f"Origine Dati: {source_msg}")
+
+        st.title(f"Sistema di Monitoraggio - {impianto_scelto[2:]}")
+
+        if sezione_selezionata == "📊 Produzione & ATM":
+            render_produzione_atm(impianto_scelto)
+
+        elif sezione_selezionata == "💧 Qualità Acqua (Manuale)":
+            render_qualita_acqua(impianto_scelto)
+
+        elif sezione_selezionata == "📄 Report":
+            render_report(impianto_scelto, config_attuale, df_ro_raw, df_uf, df_nas)
+
+        elif df_ro_raw.empty:
+            st.info(f"Nessun dato registrato per {impianto_scelto}. In attesa dei log...")
+
+        else:
+            df_ro = calcola_metriche_derivate(df_ro_raw)
+            latest_ro, baseline_ro = df_ro.iloc[-1], df_ro.iloc[0]
+            latest_uf, baseline_uf = (
+                (df_uf.iloc[-1], df_uf.iloc[0])
+                if config_attuale["has_uf"] and not df_uf.empty
+                else (
+                    pd.Series({"fit001": 0.0, "uftmp": 0.0, "dpscf": 0.0}),
+                    pd.Series({"fit001": 0.0, "uftmp": 0.0, "dpscf": 0.0})
+                )
             )
-        elif sezione_selezionata == "⚖️ Confronto Periodi":
-            render_confronto(df_ro, df_uf, config_attuale)
+
+            if sezione_selezionata == "🔵 Osmosi Inversa (RO)":
+                render_osmosi(df_ro, baseline_ro, latest_ro, config_attuale, impianto_scelto)
+            elif sezione_selezionata == "🟢 Ultrafiltrazione (UF)":
+                render_uf(df_uf, baseline_uf, latest_uf, impianto_scelto)
+            elif sezione_selezionata == "⚡ Inverter & Pompe":
+                render_inverter(df_nas, config_attuale, impianto_scelto)
+            elif sezione_selezionata == "📈 Grafici Personalizzati":
+                render_grafici_personalizzati(df_ro, df_uf)
+            elif sezione_selezionata == "🔮 Manutenzione Predittiva":
+                render_predittiva(
+                    df_ro, df_uf, df_nas, baseline_ro, latest_ro,
+                    baseline_uf, latest_uf, config_attuale, impianto_scelto
+                )
+            elif sezione_selezionata == "⚖️ Confronto Periodi":
+                render_confronto(df_ro, df_uf, config_attuale)
