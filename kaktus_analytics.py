@@ -116,7 +116,28 @@ _EXACT_TRANSLATIONS.update({
     "Nessun dato disponibile per questa combinazione.": "No data available for this combination.",
     "Non ci sono abbastanza dati storici per generare un grafico.": "Not enough historical data to generate a chart.",
     "Qualità Acqua": "Water Quality",
-    "Andamento Qualità Acqua (Manuale)": "Water Quality Trends (Manual)"
+    "Andamento Qualità Acqua (Manuale)": "Water Quality Trends (Manual)",
+    "📉 Health Index RO": "📉 RO Health Index",
+    "Health Index RO persistente": "Persistent RO Health Index",
+    "Indice di salute persistente delle membrane e del circuito RO": "Persistent health index of RO membranes and hydraulic circuit",
+    "Variazione 7 giorni": "7-day change",
+    "Stato Health Index": "Health Index status",
+    "Qualità dati Health Index": "Health Index data quality",
+    "Componente permeabilità": "Permeability component",
+    "Componente ΔP": "ΔP component",
+    "Componente passaggio salino": "Salt-passage component",
+    "Health Index storico RO": "Historical RO Health Index",
+    "Health Index persistente": "Persistent Health Index",
+    "Health Index grezzo": "Raw Health Index",
+    "Soglia monitoraggio": "Monitoring threshold",
+    "Soglia attenzione": "Warning threshold",
+    "Soglia critica": "Critical threshold",
+    "Impostazione baseline Health Index": "Health Index baseline setting",
+    "Data baseline (ultima condizione pulita / CIP / sostituzione):": "Baseline date (last clean condition / CIP / replacement):",
+    "Buono": "Good",
+    "Da monitorare": "Monitor",
+    "Attenzione": "Warning",
+    "Critico": "Critical"
 })
 
 _PHRASE_TRANSLATIONS = {'Sistema di Monitoraggio - ': 'Monitoring System — ', 'Origine Dati: ': 'Data source: ', 'Nessun dato registrato per ': 'No data recorded for ', '. In attesa dei log...': '. Waiting for logs...', 'Nessun dato PDF trovato per ': 'No PDF data found for ', 'Errore caricamento dati PDF: ': 'Error loading PDF data: ', 'Nessun misuratore di portata FIT disponibile nei dati.': 'No FIT flow meter is available in the data.', '#### Portate istantanee — tutti i FIT': '#### Instantaneous flow rates — all FIT meters', 'Fouling: Indice di Permeabilità ASTM (Media Mobile)': 'Fouling: ASTM Permeability Index (Moving Average)', 'Dinamica Pressioni Idrauliche': 'Hydraulic Pressure Dynamics', 'Dati Cosφ non disponibili o insufficienti per ': 'Cosφ data are unavailable or insufficient for ', "Nessun dato numerico valido nell'intervallo selezionato.": 'No valid numerical data in the selected range.', 'Stimato in: ': 'Estimated in: ', ' giorni': ' days', 'Dati insufficienti per la previsione delle membrane RO.': 'Insufficient data for the RO membrane forecast.', 'Lavaggio chimico (CIP) tra **': 'Chemical cleaning (CIP) in **', 'Dati insufficienti per la previsione degli spaziatori RO.': 'Insufficient data for the RO spacer forecast.', 'Lavaggio (CIP) stimato tra **': 'Cleaning (CIP) estimated in **', 'In attesa di dati UF sufficienti...': 'Waiting for sufficient UF data...', 'Dati insufficienti per la previsione dei filtri a calza.': 'Insufficient data for the bag-filter forecast.', 'Dati insufficienti per la previsione delle cartucce CF01.': 'Insufficient data for the CF01 cartridge forecast.', 'In attesa di dati inverter sufficienti...': 'Waiting for sufficient inverter data...', 'Non ci sono abbastanza campioni validi per costruire il cruscotto motori.': 'There are not enough valid samples to build the motor dashboard.', 'Previsione Fouling Membrane RO': 'RO Membrane Fouling Forecast', 'Previsione Fouling Spaziatori RO': 'RO Spacer Fouling Forecast', 'Previsione TMP Ultrafiltrazione': 'Ultrafiltration TMP Forecast', 'Previsione Intasamento Filtri a Calza': 'Bag-filter Clogging Forecast', 'Previsione Intasamento Cartucce CF01': 'CF01 Cartridge Clogging Forecast', 'Sforzo Meccanico Relativo (A/Hz) - ': 'Relative Mechanical Load (A/Hz) — ', 'Salute Magnetica Statore (Cosφ) - ': 'Stator Magnetic Health (Cosφ) — ', 'Trend Cosφ - ': 'Cosφ Trend — ', 'Distribuzione e Stabilità: ': 'Distribution and Stability: ', 'Periodo A<br>(': 'Period A<br>(', 'Periodo B<br>(': 'Period B<br>(', 'Riepilogo mensile — ': 'Monthly summary — ', 'Le medie mensili sono calcolate su ': 'Monthly averages are calculated over ', ' trascorsi del mese': ' elapsed days of the month', ' di calendario': ' calendar days', 'La data iniziale deve precedere la data finale.': 'The start date must be earlier than the end date.', 'Periodo dal ': 'Period from ', ' al ': ' to ', ' giorni di calendario.': ' calendar days.', 'Seleziona una data iniziale e una data finale.': 'Select a start date and an end date.', 'Seleziona almeno una serie da visualizzare nel grafico.': 'Select at least one data series to display in the chart.', 'Volumi giornalieri — ': 'Daily volumes — ', 'Nessun dato di produzione PDF nel mese selezionato.': 'No PDF production data for the selected month.', 'Nessun dato ATM nel mese selezionato.': 'No ATM data for the selected month.', 'Errore nel caricamento dei dati Produzione/ATM: ': 'Error loading Production/ATM data: ', 'Nessun dato di produzione o ATM trovato per ': 'No production or ATM data found for ', 'Puoi mostrare Produzione, Vendite ATM e Concentrato singolarmente oppure in qualsiasi combinazione. Il concentrato non è selezionato di default.': 'You can display Production, ATM sales and Concentrate individually or in any combination. Concentrate is not selected by default.', 'Produzione: ': 'Production: ', 'Venduto: ': 'Sold: ', 'Concentrato: ': 'Concentrate: ', 'Trend Produzione - ': 'Production Trend — ', 'Distribuzione Erogazioni - ': 'Dispensing Distribution — ', 'Nessun dato ATM trovato per questo impianto.': 'No ATM data found for this plant.', 'Errore caricamento dati ATM: ': 'Error loading ATM data: ', ' (Sostit. ': ' (Replaced ', 'Media 24h': '24 h average', 'Permeabilità': 'Permeability', 'Reiezione': 'Rejection'}
@@ -647,6 +668,166 @@ def get_health_score(valore_attuale, baseline, limite, is_max_limit=True):
         score = 100 - ((float(valore_attuale) - float(baseline)) / denominatore * 100) if is_max_limit else 100 - ((float(baseline) - float(valore_attuale)) / denominatore * 100)
         return max(0.0, min(100.0, score if np.isfinite(score) else 0.0))
     except (TypeError, ValueError): return 0.0
+
+
+def calcola_health_index_ro(df_ro, baseline_date=None):
+    """
+    Health Index storico RO (0-100), distinto dalla diagnosi istantanea.
+
+    Principi:
+    - usa mediane giornaliere per ridurre transitori e picchi;
+    - baseline robusta sui primi 7 giorni validi dopo la data baseline;
+    - combina permeabilità normalizzata (45%), ΔP RO normalizzato (35%)
+      e passaggio salino (20%);
+    - applica memoria asimmetrica: recepisce il degrado più rapidamente
+      del recupero, evitando salti eccessivi dopo una sola giornata buona.
+
+    Le soglie di riferimento sono:
+    - permeabilità: -15%;
+    - ΔP normalizzato: +15%;
+    - passaggio salino: +10% rispetto alla baseline.
+    Alla soglia la singola componente vale circa 50/100.
+    """
+    if df_ro is None or df_ro.empty:
+        return pd.DataFrame()
+
+    dp_col = (
+        "dp_ro_norm_smooth"
+        if "dp_ro_norm_smooth" in df_ro.columns
+        else "dp_ro_smooth"
+    )
+    required = ["perm_norm_smooth", dp_col, "sr_norm"]
+    if not all(col in df_ro.columns for col in required):
+        return pd.DataFrame()
+
+    work = df_ro.copy()
+
+    if "date_str" in work.columns:
+        work["_health_date"] = pd.to_datetime(work["date_str"], errors="coerce")
+    elif "timestamp" in work.columns:
+        work["_health_date"] = pd.to_datetime(
+            pd.to_numeric(work["timestamp"], errors="coerce"),
+            unit="s",
+            errors="coerce"
+        )
+    else:
+        return pd.DataFrame()
+
+    for col in required:
+        work[col] = pd.to_numeric(work[col], errors="coerce")
+
+    work = work.dropna(subset=["_health_date"]).copy()
+    if baseline_date is not None:
+        baseline_ts = pd.Timestamp(baseline_date).normalize()
+        work = work[work["_health_date"] >= baseline_ts].copy()
+
+    if work.empty:
+        return pd.DataFrame()
+
+    work["date"] = work["_health_date"].dt.normalize()
+    daily = (
+        work.groupby("date", as_index=False)[required]
+        .median()
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
+
+    valid = daily.dropna(subset=required).copy()
+    if len(valid) < 3:
+        return pd.DataFrame()
+
+    baseline_window = valid.head(min(7, len(valid)))
+    base_perm = float(baseline_window["perm_norm_smooth"].median())
+    base_dp = float(baseline_window[dp_col].median())
+    base_sp = float((100.0 - baseline_window["sr_norm"]).median())
+
+    if not np.isfinite(base_perm) or base_perm <= 0:
+        return pd.DataFrame()
+
+    # Deterioramenti relativi rispetto alla condizione di baseline.
+    daily["perdita_perm_pct"] = np.maximum(
+        0.0,
+        (base_perm - daily["perm_norm_smooth"]) / base_perm * 100.0
+    )
+
+    dp_den = max(abs(base_dp), 0.10)
+    daily["aumento_dp_pct"] = np.maximum(
+        0.0,
+        (daily[dp_col] - base_dp) / dp_den * 100.0
+    )
+
+    daily["salt_passage"] = 100.0 - daily["sr_norm"]
+    sp_den = max(abs(base_sp), 0.05)
+    daily["aumento_sp_pct"] = np.maximum(
+        0.0,
+        (daily["salt_passage"] - base_sp) / sp_den * 100.0
+    )
+
+    def score_component(degrado_pct, soglia_pct):
+        # 100 alla baseline, 50 alla soglia, 0 a 2x la soglia.
+        score = 100.0 - 50.0 * (degrado_pct / soglia_pct)
+        return np.clip(score, 0.0, 100.0)
+
+    daily["health_perm"] = score_component(daily["perdita_perm_pct"], 15.0)
+    daily["health_dp"] = score_component(daily["aumento_dp_pct"], 15.0)
+    daily["health_sp"] = score_component(daily["aumento_sp_pct"], 10.0)
+
+    daily["health_raw"] = (
+        0.45 * daily["health_perm"]
+        + 0.35 * daily["health_dp"]
+        + 0.20 * daily["health_sp"]
+    )
+
+    # Filtro con memoria asimmetrica.
+    raw = pd.to_numeric(daily["health_raw"], errors="coerce").to_numpy(dtype=float)
+    persistent = []
+    previous = np.nan
+
+    for value in raw:
+        if not np.isfinite(value):
+            persistent.append(previous)
+            continue
+
+        if not np.isfinite(previous):
+            previous = value
+        else:
+            # Se peggiora, il modello reagisce più rapidamente.
+            # Se migliora, recupera lentamente per evitare 47 -> 93 in un giorno.
+            alpha = 0.45 if value < previous else 0.08
+            previous = previous + alpha * (value - previous)
+
+        previous = float(np.clip(previous, 0.0, 100.0))
+        persistent.append(previous)
+
+    daily["health_index"] = persistent
+
+    # Completezza dei tre segnali usati per l'indice.
+    valid_count = daily[required].notna().sum(axis=1)
+    daily["data_quality"] = valid_count / len(required) * 100.0
+
+    daily["baseline_perm"] = base_perm
+    daily["baseline_dp"] = base_dp
+    daily["baseline_sp"] = base_sp
+    daily["dp_health_column"] = dp_col
+
+    return daily
+
+
+def stato_health_index(score):
+    try:
+        score = float(score)
+    except (TypeError, ValueError):
+        return "N/D"
+
+    if not np.isfinite(score):
+        return "N/D"
+    if score >= 85:
+        return "Buono"
+    if score >= 70:
+        return "Da monitorare"
+    if score >= 50:
+        return "Attenzione"
+    return "Critico"
 
 
 def _finite_float(value, default=np.nan):
@@ -1285,7 +1466,8 @@ def render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf,
     g_uf = stima_giorni_rimanenti(df_uf, 'uftmp', L_TMP_UF) if config_attuale["has_uf"] and not df_uf.empty else None
 
     diagnosis_tab_label = ui_text("🧪 Diagnosi & CIP", "🧪 Diagnosis & CIP")
-    tab_labels = ["📊 Cruscotto Salute", diagnosis_tab_label, "💧 Membrane (Perm)", "🧱 Fouling Spaziatori (ΔP)"]
+    health_tab_label = ui_text("📉 Health Index RO", "📉 RO Health Index")
+    tab_labels = ["📊 Cruscotto Salute", health_tab_label, diagnosis_tab_label, "💧 Membrane (Perm)", "🧱 Fouling Spaziatori (ΔP)"]
     if config_attuale["has_uf"]: tab_labels.append("🟢 Membrane UF")
     if config_attuale["has_bag_filters"]: tab_labels.append("🧦 Filtri a Calza")
     tab_labels.extend(["🗑️ Cartucce CF01", "⛨ Diagnostica Motori"])
@@ -1309,6 +1491,195 @@ def render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf,
             col.markdown(f"<h2 style='color:{'green' if score > 70 else ('orange' if score > 30 else 'red')}; margin:0;'>{score:.0f}%</h2>", unsafe_allow_html=True)
             col.caption("Stabile - Nessun intervento" if giorni == 999 else (f"Stimato in: {giorni} giorni" if giorni is not None else "Dati insufficienti"))
             col.progress(int(max(0, min(100, score))))
+
+        st.caption(
+            ui_text(
+                "Questi Health Score descrivono la posizione attuale rispetto alle soglie. "
+                "Il tab Health Index RO aggiunge memoria temporale e inerzia; Diagnosi & CIP "
+                "descrive invece la compatibilità dei segnali correnti con le possibili cause.",
+                "These Health Scores describe the current position relative to the thresholds. "
+                "The RO Health Index tab adds temporal memory and inertia; Diagnosis & CIP "
+                "instead describes how compatible the current signals are with possible causes."
+            )
+        )
+
+    with tab_map[health_tab_label]:
+        st.subheader(
+            ui_text(
+                "Indice di salute persistente delle membrane e del circuito RO",
+                "Persistent health index of RO membranes and hydraulic circuit"
+            )
+        )
+
+        date_health = pd.to_datetime(df_ro.get("date_str"), errors="coerce").dropna()
+
+        if date_health.empty:
+            st.info("Dati insufficienti")
+        else:
+            data_min_health = date_health.min().date()
+            data_max_health = date_health.max().date()
+            health_key = f"health_baseline_{impianto_scelto}"
+
+            with st.expander(
+                ui_text(
+                    "Impostazione baseline Health Index",
+                    "Health Index baseline setting"
+                ),
+                expanded=False
+            ):
+                baseline_health_date = st.date_input(
+                    ui_text(
+                        "Data baseline (ultima condizione pulita / CIP / sostituzione):",
+                        "Baseline date (last clean condition / CIP / replacement):"
+                    ),
+                    value=data_min_health,
+                    min_value=data_min_health,
+                    max_value=data_max_health,
+                    key=health_key
+                )
+
+            health_df = calcola_health_index_ro(
+                df_ro,
+                baseline_date=baseline_health_date
+            )
+
+            if health_df.empty:
+                st.info("Dati insufficienti")
+            else:
+                latest_h = health_df.iloc[-1]
+                score_h = float(latest_h["health_index"])
+
+                target_7d = latest_h["date"] - pd.Timedelta(days=7)
+                storico_precedente = health_df[
+                    health_df["date"] <= target_7d
+                ]
+                ref_7d = (
+                    storico_precedente.iloc[-1]
+                    if not storico_precedente.empty
+                    else health_df.iloc[0]
+                )
+                delta_7d = score_h - float(ref_7d["health_index"])
+
+                ultimi_7 = health_df[
+                    health_df["date"] >= latest_h["date"] - pd.Timedelta(days=6)
+                ]
+                quality_h = (
+                    float(ultimi_7["data_quality"].mean())
+                    if not ultimi_7.empty
+                    else np.nan
+                )
+
+                h1, h2, h3, h4 = st.columns(4)
+                h1.metric(
+                    ui_text("Health Index RO persistente", "Persistent RO Health Index"),
+                    f"{score_h:.0f}%",
+                    f"{delta_7d:+.1f} pt",
+                    delta_color="normal"
+                )
+                h2.metric(
+                    ui_text("Variazione 7 giorni", "7-day change"),
+                    f"{delta_7d:+.1f} pt"
+                )
+                h3.metric(
+                    ui_text("Stato Health Index", "Health Index status"),
+                    ui_text(
+                        stato_health_index(score_h),
+                        {
+                            "Buono": "Good",
+                            "Da monitorare": "Monitor",
+                            "Attenzione": "Warning",
+                            "Critico": "Critical",
+                            "N/D": "N/A"
+                        }.get(stato_health_index(score_h), stato_health_index(score_h))
+                    )
+                )
+                h4.metric(
+                    ui_text("Qualità dati Health Index", "Health Index data quality"),
+                    f"{quality_h:.0f}%" if np.isfinite(quality_h) else "N/D"
+                )
+
+                c1, c2, c3 = st.columns(3)
+                c1.metric(
+                    ui_text("Componente permeabilità", "Permeability component"),
+                    f"{latest_h['health_perm']:.0f}%"
+                )
+                c2.metric(
+                    ui_text("Componente ΔP", "ΔP component"),
+                    f"{latest_h['health_dp']:.0f}%"
+                )
+                c3.metric(
+                    ui_text("Componente passaggio salino", "Salt-passage component"),
+                    f"{latest_h['health_sp']:.0f}%"
+                )
+
+                fig_health = go.Figure()
+                fig_health.add_trace(go.Scatter(
+                    x=health_df["date"],
+                    y=health_df["health_raw"],
+                    mode="lines",
+                    name=ui_text("Health Index grezzo", "Raw Health Index"),
+                    line=dict(width=1, dash="dot"),
+                    opacity=0.45
+                ))
+                fig_health.add_trace(go.Scatter(
+                    x=health_df["date"],
+                    y=health_df["health_index"],
+                    mode="lines",
+                    name=ui_text("Health Index persistente", "Persistent Health Index"),
+                    line=dict(width=4)
+                ))
+                fig_health.add_hline(
+                    y=85,
+                    line_dash="dot",
+                    annotation_text=ui_text(
+                        "Soglia monitoraggio", "Monitoring threshold"
+                    )
+                )
+                fig_health.add_hline(
+                    y=70,
+                    line_dash="dash",
+                    annotation_text=ui_text(
+                        "Soglia attenzione", "Warning threshold"
+                    )
+                )
+                fig_health.add_hline(
+                    y=50,
+                    line_dash="dashdot",
+                    annotation_text=ui_text(
+                        "Soglia critica", "Critical threshold"
+                    )
+                )
+                fig_health.update_layout(
+                    title=ui_text(
+                        "Health Index storico RO",
+                        "Historical RO Health Index"
+                    ),
+                    yaxis_title="Health Index (%)",
+                    yaxis=dict(range=[0, 105]),
+                    hovermode="x unified",
+                    margin=dict(l=20, r=20, t=55, b=20)
+                )
+                st.plotly_chart(
+                    fig_health,
+                    use_container_width=True,
+                    key=f"health_index_chart_{impianto_scelto}"
+                )
+
+                st.info(
+                    ui_text(
+                        "Il Health Index è distinto dalla diagnosi corrente. Usa mediane "
+                        "giornaliere, permeabilità normalizzata, ΔP RO normalizzato e "
+                        "passaggio salino. Il peggioramento viene recepito più rapidamente "
+                        "del recupero: una sola giornata buona non cancella il degrado "
+                        "precedente. Dopo un CIP o una sostituzione imposta qui una nuova "
+                        "data di baseline.",
+                        "The Health Index is separate from the current diagnosis. It uses "
+                        "daily medians, normalised permeability, normalised RO ΔP and salt "
+                        "passage. Deterioration is incorporated faster than recovery, so "
+                        "one good day does not erase previous degradation. After CIP or "
+                        "replacement, set a new baseline date here."
+                    )
+                )
 
     with tab_map[diagnosis_tab_label]:
         render_diagnosi_cip_ro(df_ro, baseline_ro, latest_ro)
@@ -1426,9 +1797,18 @@ def render_predittiva(df_ro, df_uf, df_nas, baseline_ro, latest_ro, baseline_uf,
                         fig_cosphi.update_layout(yaxis_title='Fattore di potenza')
                         st.plotly_chart(fig_cosphi, use_container_width=True)
                         
-    st.info("""💡 **Guida alla Lettura - Modello Predittivo:**
-    - **Health Score (%):** Un indicatore compreso tra 0 e 100 che rappresenta la "vita utile residua" dell'asset prima di dover effettuare una manutenzione correttiva.
-    - **Come calcoliamo le date:** Il sistema utilizza un algoritmo di **Regressione Lineare** (usando l'equazione $y = mx + q$) che elabora la tendenza dei dati storici. Quando la retta di regressione tracciata dal modello interseca i limiti ingegneristici predefiniti (ad esempio: una perdita del 15% sulla permeabilità iniziale), il sistema stima in modo proattivo i giorni rimanenti al lavaggio (CIP) o alla sostituzione.""")
+    st.info(ui_text(
+        """💡 **Guida alla Lettura - Modello Predittivo:**
+        - **Health Score:** posizione istantanea dell'asset rispetto alla baseline e alla soglia ingegneristica.
+        - **Health Index RO:** indice storico persistente 0–100. Integra permeabilità, ΔP normalizzato e passaggio salino con memoria temporale, quindi è molto meno sensibile alle oscillazioni di un singolo giorno.
+        - **Diagnosi & CIP:** valuta la compatibilità dei segnali correnti con diversi meccanismi di fouling; non è una probabilità statistica di guasto.
+        - **Previsioni:** le date sono stimate tramite regressione dei trend storici verso le soglie ingegneristiche.""",
+        """💡 **Reading Guide — Predictive Model:**
+        - **Health Score:** instantaneous position of the asset relative to its baseline and engineering threshold.
+        - **RO Health Index:** persistent historical 0–100 index combining permeability, normalised ΔP and salt passage with temporal memory, making it much less sensitive to a single day's fluctuations.
+        - **Diagnosis & CIP:** evaluates how compatible current signals are with different fouling mechanisms; it is not a statistical failure probability.
+        - **Forecasts:** dates are estimated by regressing historical trends towards engineering thresholds."""
+    ))
 
 def render_confronto(df_ro, df_uf, config_attuale):
     st.header("⚖️ Analisi Comparativa (A/B Test)")
@@ -2242,6 +2622,57 @@ def _report_chart_daily_volumes(daily, selected_series):
     return _report_fig_to_png(fig)
 
 
+def _report_chart_health_index(df_ro, start_date=None, end_date=None):
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+
+    # Calcola l'indice sull'intera storia per non azzerare la memoria
+    # all'inizio del periodo scelto nel report.
+    health = calcola_health_index_ro(df_ro)
+    if health.empty:
+        return None
+
+    if start_date is not None:
+        health = health[
+            health["date"] >= pd.Timestamp(start_date).normalize()
+        ]
+    if end_date is not None:
+        health = health[
+            health["date"] <= pd.Timestamp(end_date).normalize()
+        ]
+
+    if health.empty:
+        return None
+
+    fig, ax = plt.subplots(figsize=(7.2, 3.1))
+    ax.plot(
+        health["date"],
+        health["health_raw"],
+        linewidth=1,
+        linestyle=":",
+        alpha=0.35,
+        label=_r("Health Index grezzo", "Raw Health Index")
+    )
+    ax.plot(
+        health["date"],
+        health["health_index"],
+        linewidth=2.4,
+        label=_r("Health Index persistente", "Persistent Health Index")
+    )
+    ax.axhline(85, linestyle=":", linewidth=1, alpha=0.7)
+    ax.axhline(70, linestyle="--", linewidth=1, alpha=0.7)
+    ax.axhline(50, linestyle="-.", linewidth=1, alpha=0.7)
+    ax.set_ylim(0, 105)
+    ax.set_title(_r("Health Index storico RO", "Historical RO Health Index"))
+    ax.set_ylabel("Health Index (%)")
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
+    ax.tick_params(axis="x", rotation=45, labelsize=7)
+    ax.grid(axis="y", alpha=0.22)
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    return _report_fig_to_png(fig)
+
+
 def _report_chart_trend(df, col, title_it, title_en, y_it, y_en, limit=None, baseline=None, forecast_days=30, direction=None):
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
@@ -2630,6 +3061,7 @@ def genera_report_pdf(impianto_scelto, config_attuale, start_date, end_date, df_
         baseline_ro = ro_all.iloc[0]
         dp_report_col = "dp_ro_norm_smooth" if "dp_ro_norm_smooth" in ro_period.columns else "dp_ro_smooth"
         charts = []
+        charts.append(_report_chart_health_index(ro_all, start_date, end_date))
         charts.append(_report_chart_trend(ro_period, "perm_norm_smooth", "Permeabilità normalizzata delle membrane RO", "RO membrane normalised permeability", "Permeabilità normalizzata", "Normalised permeability", limit=float(baseline_ro.get("perm_norm_smooth", np.nan)) * 0.85, forecast_days=30, direction="down"))
         charts.append(_report_chart_trend(ro_period, dp_report_col, "Salto di pressione normalizzato delle membrane RO", "RO membrane normalised pressure drop", "ΔP normalizzato (bar)", "Normalised ΔP (bar)", limit=float(baseline_ro.get(dp_report_col, np.nan)) * 1.15, baseline=float(baseline_ro.get(dp_report_col, np.nan)), forecast_days=30, direction="up"))
         charts.append(_report_chart_trend(ro_period, "dp_cf01", "Intasamento delle cartucce CF01", "CF01 cartridge clogging", "ΔP (bar)", "ΔP (bar)", limit=1.0, baseline=float(baseline_ro.get("dp_cf01", np.nan)), forecast_days=20, direction="up"))
