@@ -3353,33 +3353,55 @@ def render_atm(impianto_scelto):
     except Exception as e:
         st.error(f"Errore caricamento dati ATM: {e}")
 
-def valuta_parametro_who(valore, parametro):
-    """Valuta il parametro chimico-fisico rispetto alle soglie operative configurate."""
+def valuta_parametro_who(valore, parametro, impianto_scelto="", punto=""):
+    """Valuta il parametro chimico-fisico rispetto alle soglie operative configurate per impianto e punto."""
     if pd.isna(valore):
         return "⚪", "N/D", "normal"
         
+    is_pingwe = "Pingwe" in impianto_scelto
+    is_pozzo = is_pingwe and punto in ["BH 1", "BH 2"]
+    is_ro = is_pingwe and punto == "RO"
+        
     if parametro == "pH":
-        if 6.0 <= valore <= 8.5: return "🟢", "Ottimale", "normal"
-        elif 5.5 <= valore < 6.0 or 8.5 < valore <= 9.0: return "🟡", "Attenzione", "off"
-        else: return "🔴", "Critico", "inverse"
+        if is_pingwe:
+            if 6.5 <= valore <= 8.5: return "🟢", "Ottimale", "normal"
+            elif 5.0 <= valore < 6.5 or 8.5 < valore <= 9.0: return "🟡", "Attenzione", "off"
+            else: return "🔴", "Critico", "inverse"
+        else: # Kaktus
+            if 6.0 <= valore <= 8.5: return "🟢", "Ottimale", "normal"
+            elif 5.5 <= valore < 6.0 or 8.5 < valore <= 9.0: return "🟡", "Attenzione", "off"
+            else: return "🔴", "Critico", "inverse"
         
     elif parametro == "Cloro":
-        if 0.2 <= valore <= 1.0: return "🟢", "Ottimale", "normal"
-        elif 0.1 <= valore < 0.2 or 1.0 < valore <= 2.0: return "🟡", "Attenzione", "off"
-        else: return "🔴", "Critico", "inverse"
+        if is_pingwe:
+            if is_pozzo or is_ro:
+                if valore <= 0.1: return "🟢", "Ottimale", "normal"
+                elif 0.1 < valore <= 0.2: return "🟡", "Attenzione", "off"
+                else: return "🔴", "Critico", "inverse"
+            else: # Standard Potabile Pingwe
+                if 0.2 <= valore <= 0.55: return "🟢", "Ottimale", "normal"
+                elif 0.1 <= valore < 0.2 or 0.55 < valore <= 1.0: return "🟡", "Attenzione", "off"
+                else: return "🔴", "Critico", "inverse"
+        else: # Kaktus
+            if 0.2 <= valore <= 1.0: return "🟢", "Ottimale", "normal"
+            elif 0.1 <= valore < 0.2 or 1.0 < valore <= 2.0: return "🟡", "Attenzione", "off"
+            else: return "🔴", "Critico", "inverse"
         
     elif parametro == "Conducibilità":
-        if valore <= 500: return "🟢", "Ottimale", "normal"
-        elif 500 < valore <= 1000: return "🟡", "Attenzione", "off"
-        else: return "🔴", "Critico", "inverse"
-        
+        if is_pingwe and is_pozzo:
+            if 1500 <= valore <= 7500: return "🟢", "Ottimale", "normal"
+            elif valore < 1500: return "🟡", "Attenzione", "off"
+            else: return "🔴", "Critico", "inverse"
+        else: # Kaktus, Pingwe RO, Pingwe Potabile
+            if valore <= 500: return "🟢", "Ottimale", "normal"
+            elif 500 < valore <= 1000: return "🟡", "Attenzione", "off"
+            else: return "🔴", "Critico", "inverse"
+            
     return "⚪", "", "normal"
 
 def render_qualita_acqua(impianto_scelto):
     st.header("💧 Qualità Acqua e Soglie Operative (Manuale)")
     
-    # 1. GESTIONE MULTI-IMPIANTO FUTURA
-    # Determina il nome della tabella dinamicamente in base all'impianto
     nome_impianto = "kaktus" if "Kaktus" in impianto_scelto else "pingwe"
     tabella_db = f"misurazioni_{nome_impianto}"
     
@@ -3390,7 +3412,6 @@ def render_qualita_acqua(impianto_scelto):
         df_acqua = pd.DataFrame(res.data)
         
     except Exception as e:
-        # Se la tabella per Pingwe non esiste ancora, cattura l'errore elegantemente
         if "pingwe" in nome_impianto:
             st.info("Il modulo Qualità Acqua non è ancora stato attivato o configurato nel database per questo impianto.")
             return
@@ -3401,7 +3422,6 @@ def render_qualita_acqua(impianto_scelto):
         st.info(f"Nessun dato di qualità dell'acqua trovato per l'impianto {impianto_scelto}.")
         return
 
-    # Srotolamento dei dati dal formato JSONB a righe tabellari per l'analisi
     storico_dati = []
     for _, row in df_acqua.iterrows():
         data_val = row.get('data_rilievo')
@@ -3421,7 +3441,6 @@ def render_qualita_acqua(impianto_scelto):
         st.warning("I report caricati non contengono dati numerici validi.")
         return
 
-    # Mappatura dei parametri per la UI e le funzioni di valutazione
     mappa_parametri = {
         'cl': 'Cloro',
         'cond': 'Conducibilità',
@@ -3429,43 +3448,42 @@ def render_qualita_acqua(impianto_scelto):
         'ph': 'pH'
     }
     df_storico['Parametro'] = df_storico['Parametro_Raw'].map(mappa_parametri).fillna(df_storico['Parametro_Raw'])
-
+    tutti_punti = sorted(df_storico['Punto'].unique())
 
     # ==========================================
     # 1. CRUSCOTTO WHO (AT-A-GLANCE)
     # ==========================================
-    st.subheader("Cruscotto Attuale (Linee Guida WHO)")
+    st.subheader("Cruscotto Attuale (Ultimo Campionamento)")
     
-    # Estraiamo l'ultima data di campionamento disponibile
+    default_dash = "ATM" if "ATM" in tutti_punti else tutti_punti[0]
+    punto_cruscotto = st.selectbox("📍 Seleziona il punto di prelievo per il cruscotto:", tutti_punti, index=tutti_punti.index(default_dash) if default_dash in tutti_punti else 0)
+    
     ultima_data = df_storico['Data'].max()
-    df_ultimo = df_storico[df_storico['Data'] == ultima_data]
-    
-    # Calcoliamo la media dei valori se ci sono stati più punti di prelievo lo stesso giorno
-    valori_attuali = df_ultimo.groupby('Parametro')['Valore'].mean().to_dict()
+    df_ultimo_punto = df_storico[(df_storico['Data'] == ultima_data) & (df_storico['Punto'] == punto_cruscotto)]
+    valori_attuali = df_ultimo_punto.set_index('Parametro')['Valore'].to_dict()
     
     c1, c2, c3 = st.columns(3)
     
     val_ph = valori_attuali.get('pH', np.nan)
-    icona_ph, stato_ph, delta_ph = valuta_parametro_who(val_ph, "pH")
+    icona_ph, stato_ph, delta_ph = valuta_parametro_who(val_ph, "pH", impianto_scelto, punto_cruscotto)
     with c1: 
-        st.metric(label=f"pH Medio {icona_ph}", value=f"{val_ph:.2f}" if pd.notna(val_ph) else "N/D", delta=stato_ph, delta_color=delta_ph)
+        st.metric(label=f"pH ({punto_cruscotto}) {icona_ph}", value=f"{val_ph:.2f}" if pd.notna(val_ph) else "N/D", delta=stato_ph, delta_color=delta_ph)
         
     val_cl = valori_attuali.get('Cloro', np.nan)
-    icona_cl, stato_cl, delta_cl = valuta_parametro_who(val_cl, "Cloro")
+    icona_cl, stato_cl, delta_cl = valuta_parametro_who(val_cl, "Cloro", impianto_scelto, punto_cruscotto)
     with c2: 
-        st.metric(label=f"Cloro Residuo {icona_cl}", value=f"{val_cl:.2f} mg/L" if pd.notna(val_cl) else "N/D", delta=stato_cl, delta_color=delta_cl)
+        st.metric(label=f"Cloro ({punto_cruscotto}) {icona_cl}", value=f"{val_cl:.2f} mg/L" if pd.notna(val_cl) else "N/D", delta=stato_cl, delta_color=delta_cl)
         
     val_cond = valori_attuali.get('Conducibilità', np.nan)
-    icona_cond, stato_cond, delta_cond = valuta_parametro_who(val_cond, "Conducibilità")
+    icona_cond, stato_cond, delta_cond = valuta_parametro_who(val_cond, "Conducibilità", impianto_scelto, punto_cruscotto)
     with c3: 
-        st.metric(label=f"Conducibilità Media {icona_cond}", value=f"{val_cond:.0f} µS/cm" if pd.notna(val_cond) else "N/D", delta=stato_cond, delta_color=delta_cond)
+        st.metric(label=f"Cond. ({punto_cruscotto}) {icona_cond}", value=f"{val_cond:.0f} µS/cm" if pd.notna(val_cond) else "N/D", delta=stato_cond, delta_color=delta_cond)
         
-    st.caption(f"Valori riferiti all'ultimo campionamento del: **{ultima_data.strftime('%d/%m/%Y')}** (Valore medio tra i punti di prelievo della giornata)")
+    st.caption(f"Valori riferiti all'ultimo campionamento del: **{ultima_data.strftime('%d/%m/%Y')}**")
     st.markdown("---")
 
-
     # ==========================================
-    # 2. GRAFICI DI TREND CON FASCE WHO
+    # 2. GRAFICI DI TREND CON FASCE DINAMICHE
     # ==========================================
     st.subheader("📈 Trend Storico e Soglie Operative")
     
@@ -3479,10 +3497,9 @@ def render_qualita_acqua(impianto_scelto):
             key="water_quality_parameter",
         )
     with col_punti:
-        tutti_punti = sorted(df_storico['Punto'].unique())
         punti_atm_default = [
             punto for punto in tutti_punti
-            if re.sub(r'[^A-Za-z0-9]+', '', str(punto)).upper() in {'ATM1', 'ATM2'}
+            if re.sub(r'[^A-Za-z0-9]+', '', str(punto)).upper() in {'ATM1', 'ATM2', 'ATM'}
         ]
         default_punti = punti_atm_default or (["Tk11"] if "Tk11" in tutti_punti else [tutti_punti[0]])
         punti_selezionati = st.multiselect(
@@ -3498,35 +3515,64 @@ def render_qualita_acqua(impianto_scelto):
         df_plot = df_plot.sort_values('Data')
         fig = px.line(df_plot, x='Data', y='Valore', color='Punto', markers=True, title=f"Andamento {param_selezionato} rispetto alle soglie operative")
         
-        # Disegno delle fasce operative dinamiche
+        punto_rif = punti_selezionati[0] if len(punti_selezionati) > 0 else ""
+        is_pingwe = "Pingwe" in impianto_scelto
+        is_pozzo = is_pingwe and punto_rif in ["BH 1", "BH 2"]
+        is_ro = is_pingwe and punto_rif == "RO"
+
         if param_selezionato == 'pH':
-            fig.add_hrect(y0=6.0, y1=8.5, line_width=0, fillcolor="green", opacity=0.1, annotation_text="Regolare")
-            fig.add_hrect(y0=5.5, y1=6.0, line_width=0, fillcolor="orange", opacity=0.1, annotation_text="Attenzione")
-            fig.add_hrect(y0=8.5, y1=9.0, line_width=0, fillcolor="orange", opacity=0.1)
-            fig.add_hline(y=5.5, line_dash="dash", line_color="red", annotation_text="Critico Minimo")
-            fig.add_hline(y=9.0, line_dash="dash", line_color="red", annotation_text="Critico Massimo")
-            fig.update_yaxes(range=[5.0, 10.0])
+            if is_pingwe:
+                fig.add_hrect(y0=6.5, y1=8.5, line_width=0, fillcolor="green", opacity=0.1, annotation_text="Ottimale")
+                fig.add_hrect(y0=5.0, y1=6.5, line_width=0, fillcolor="orange", opacity=0.1, annotation_text="Attenzione")
+                fig.add_hrect(y0=8.5, y1=9.0, line_width=0, fillcolor="orange", opacity=0.1)
+                fig.add_hline(y=5.0, line_dash="dash", line_color="red", annotation_text="Critico Minimo")
+                fig.add_hline(y=9.0, line_dash="dash", line_color="red", annotation_text="Critico Massimo")
+                fig.update_yaxes(range=[4.0, 10.0])
+            else: # Kaktus
+                fig.add_hrect(y0=6.0, y1=8.5, line_width=0, fillcolor="green", opacity=0.1, annotation_text="Regolare")
+                fig.add_hrect(y0=5.5, y1=6.0, line_width=0, fillcolor="orange", opacity=0.1, annotation_text="Attenzione")
+                fig.add_hrect(y0=8.5, y1=9.0, line_width=0, fillcolor="orange", opacity=0.1)
+                fig.add_hline(y=5.5, line_dash="dash", line_color="red", annotation_text="Critico Minimo")
+                fig.add_hline(y=9.0, line_dash="dash", line_color="red", annotation_text="Critico Massimo")
+                fig.update_yaxes(range=[4.0, 10.0])
             
         elif param_selezionato == 'Cloro':
-            fig.add_hrect(y0=0.2, y1=1.0, line_width=0, fillcolor="green", opacity=0.1, annotation_text="Ottimale")
-            fig.add_hline(y=0.1, line_dash="dash", line_color="orange", annotation_text="Sottodosaggio")
-            fig.add_hline(y=2.0, line_dash="dash", line_color="red", annotation_text="Sovradosaggio")
+            if is_pingwe:
+                if is_pozzo or is_ro:
+                    fig.add_hrect(y0=0, y1=0.1, line_width=0, fillcolor="green", opacity=0.1, annotation_text="Ottimale")
+                    fig.add_hrect(y0=0.1, y1=0.2, line_width=0, fillcolor="orange", opacity=0.1, annotation_text="Attenzione")
+                    fig.add_hline(y=0.2, line_dash="dash", line_color="red", annotation_text="Critico Massimo")
+                else: # Standard Potabile Pingwe
+                    fig.add_hrect(y0=0.2, y1=0.55, line_width=0, fillcolor="green", opacity=0.1, annotation_text="Ottimale")
+                    fig.add_hrect(y0=0.1, y1=0.2, line_width=0, fillcolor="orange", opacity=0.1, annotation_text="Attenzione")
+                    fig.add_hrect(y0=0.55, y1=1.0, line_width=0, fillcolor="orange", opacity=0.1)
+                    fig.add_hline(y=0.1, line_dash="dash", line_color="red", annotation_text="Sottodosaggio")
+                    fig.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Sovradosaggio")
+            else: # Kaktus
+                fig.add_hrect(y0=0.2, y1=1.0, line_width=0, fillcolor="green", opacity=0.1, annotation_text="Ottimale")
+                fig.add_hline(y=0.1, line_dash="dash", line_color="orange", annotation_text="Sottodosaggio")
+                fig.add_hline(y=2.0, line_dash="dash", line_color="red", annotation_text="Sovradosaggio")
             
         elif param_selezionato == 'Conducibilità':
-            fig.add_hrect(y0=0, y1=500, line_width=0, fillcolor="green", opacity=0.1, annotation_text="Ottimale")
-            fig.add_hrect(y0=500, y1=1000, line_width=0, fillcolor="orange", opacity=0.1, annotation_text="Accettabile")
-            fig.add_hline(y=1000, line_dash="dash", line_color="red", annotation_text="Limite WHO")
+            if is_pingwe and is_pozzo:
+                fig.add_hrect(y0=1500, y1=7500, line_width=0, fillcolor="green", opacity=0.1, annotation_text="Ottimale (TDS atteso)")
+                fig.add_hrect(y0=0, y1=1500, line_width=0, fillcolor="orange", opacity=0.1, annotation_text="Attenzione (Acqua dolce)")
+                fig.add_hline(y=7500, line_dash="dash", line_color="red", annotation_text="Critico (Elevata Salinità)")
+            else: # Kaktus, Pingwe RO, Pingwe Potabile
+                fig.add_hrect(y0=0, y1=500, line_width=0, fillcolor="green", opacity=0.1, annotation_text="Ottimale")
+                fig.add_hrect(y0=500, y1=1000, line_width=0, fillcolor="orange", opacity=0.1, annotation_text="Accettabile")
+                fig.add_hline(y=1000, line_dash="dash", line_color="red", annotation_text="Limite WHO")
 
         fig.update_layout(xaxis_title="Data", yaxis_title=param_selezionato, hovermode="x unified", margin=dict(l=20, r=20, t=40, b=20))
         st.plotly_chart(fig, use_container_width=True)
+        st.caption(f"Le fasce di tolleranza visive sono calibrate sulle soglie operative del punto: **{punto_rif}**.")
     else:
         st.info("Nessun dato disponibile per questa combinazione di parametri e punti di prelievo.")
 
     st.markdown("---")
 
-
     # ==========================================
-    # 3. DETTAGLIO REPORT MANUALE (ESISTENTE)
+    # 3. DETTAGLIO REPORT MANUALE 
     # ==========================================
     st.subheader("Dettaglio Misurazione e Firma Operatore")
     
@@ -3670,7 +3716,11 @@ def _water_quality_summary(impianto_scelto):
             continue
         parameter, unit = parameter_map[raw_parameter]
         value = float(row['Valore'])
-        _, status, _ = valuta_parametro_who(value, parameter)
+        punto = str(row['Punto'])
+        
+        # ORA PASSIAMO IMPIANTO E PUNTO PER DISINNESCARE I FALSI ALLARMI
+        _, status, _ = valuta_parametro_who(value, parameter, impianto_scelto, punto)
+        
         result['checked'] += 1
         if status == 'Critico':
             worst_level = 'critical'
@@ -3678,10 +3728,11 @@ def _water_quality_summary(impianto_scelto):
             worst_level = 'warning'
         else:
             continue
+            
         formatted_value = f"{value:.2f}" if parameter != 'Conducibilità' else f"{value:.0f}"
         result['messages'].append(ui_text(
-            f"{row['Punto']} – {parameter}: {formatted_value} {unit} ({status.lower()}).",
-            f"{row['Punto']} – {parameter}: {formatted_value} {unit} ({'critical' if status == 'Critico' else 'warning'})."
+            f"{punto} – {parameter}: {formatted_value} {unit} ({status.lower()}).",
+            f"{punto} – {parameter}: {formatted_value} {unit} ({'critical' if status == 'Critico' else 'warning'})."
         ))
 
     if result['checked']:
