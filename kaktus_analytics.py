@@ -1869,23 +1869,34 @@ def load_produzione_atm(impianto_scelto):
     from supabase import create_client
     supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
-    res_pdf = (
-        supabase.table("produzione_pdf")
-        .select("*")
-        .eq("impianto", nome_db)
-        .order("data_rif", desc=False)
-        .execute()
-    )
-    res_atm = (
-        supabase.table("storico_atm")
-        .select("*")
-        .eq("impianto", nome_db)
-        .order("data_rif", desc=False)
-        .execute()
-    )
+    # Funzione interna per bypassare il limite di 1000 righe di Supabase
+    def fetch_all_by_impianto(table_name, impianto_name):
+        all_data = []
+        offset = 0
+        limit = 1000
+        while True:
+            res = (
+                supabase.table(table_name)
+                .select("*")
+                .eq("impianto", impianto_name)
+                .order("data_rif", desc=False)
+                .range(offset, offset + limit - 1)
+                .execute()
+            )
+            if not res.data:
+                break
+            all_data.extend(res.data)
+            if len(res.data) < limit:
+                break
+            offset += limit
+        return all_data
 
-    df_pdf = pd.DataFrame(res_pdf.data)
-    df_atm = pd.DataFrame(res_atm.data)
+    # Estrazione completa senza limiti
+    data_pdf = fetch_all_by_impianto("produzione_pdf", nome_db)
+    data_atm = fetch_all_by_impianto("storico_atm", nome_db)
+
+    df_pdf = pd.DataFrame(data_pdf)
+    df_atm = pd.DataFrame(data_atm)
 
     if not df_pdf.empty:
         df_pdf["data_rif"] = pd.to_datetime(df_pdf["data_rif"], errors="coerce").dt.normalize()
