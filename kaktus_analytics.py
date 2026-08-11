@@ -3985,77 +3985,68 @@ def render_fleet_overview():
 if __name__ == '__main__':
     _RAW_ST.set_page_config(page_title="Water Partners Fleet Management", layout="wide")
 
-    # --- 1. LOGO DINAMICO IN CIMA ALLA SIDEBAR ---
+    # --- 1. LOGO DINAMICO NATIVO (In cima alla sidebar) ---
     import base64
     import streamlit.components.v1 as components
 
     try:
-        # Leggiamo le immagini e le convertiamo in testo (Base64) per iniettarle nell'HTML
+        # Converte i due loghi in testo Base64
         with open("Logo v1.png", "rb") as f:
             logo_light = base64.b64encode(f.read()).decode()
         with open("Logo v1_dark mode.png", "rb") as f:
             logo_dark = base64.b64encode(f.read()).decode()
         
-        html_logo = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <style>
-            body {{
-                margin: 0;
-                padding: 0;
-                background-color: transparent;
-                display: flex;
-                align-items: center;
-                justify-content: flex-start; /* Allinea a sinistra */
-            }}
-            img {{
-                width: 100%;
-                max-width: 250px;
-                max-height: 85px;
-                object-fit: contain;
-            }}
-        </style>
-        </head>
-        <body>
-            <img id="logo" src="data:image/png;base64,{logo_light}">
-            <script>
-                function updateLogo() {{
-                    // Legge il colore del testo che Streamlit applica automaticamente
-                    const color = window.getComputedStyle(document.body).color;
-                    const match = color.match(/\d+/g);
-                    if (match) {{
-                        const r = parseInt(match[0]);
-                        const g = parseInt(match[1]);
-                        const b = parseInt(match[2]);
-                        // Calcola la luminosità del testo
-                        const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-                        
-                        // Se il testo è chiaro (luma > 128), lo sfondo è scuro -> Mostra logo Dark
-                        if (luma > 128) {{
-                            document.getElementById('logo').src = "data:image/png;base64,{logo_dark}";
-                        }} else {{
-                            document.getElementById('logo').src = "data:image/png;base64,{logo_light}";
-                        }}
-                    }}
-                }}
+        # Inserisce le immagini DIRETTAMENTE nella sidebar (no iframe = dimensioni massime e perfette)
+        _RAW_ST.sidebar.markdown(f"""
+            <div style="margin-top: -30px; margin-bottom: 20px; text-align: left;">
+                <img id="my-logo-light" src="data:image/png;base64,{logo_light}" style="width: 100%; max-width: 280px; display: none;">
+                <img id="my-logo-dark" src="data:image/png;base64,{logo_dark}" style="width: 100%; max-width: 280px; display: none;">
+            </div>
+        """, unsafe_allow_html=True)
+
+        # Inietta un micro-script invisibile che legge il colore REALE del tema di Streamlit 
+        # e accende il logo corretto (funziona anche se forzi il tema dalle impostazioni)
+        js_theme_watcher = """
+        <script>
+            function updateLogo() {
+                const parentDoc = window.parent.document;
+                const lightLogo = parentDoc.getElementById('my-logo-light');
+                const darkLogo = parentDoc.getElementById('my-logo-dark');
                 
-                // Resta in ascolto: se cambi tema dal menu in alto a destra, cambia il logo all'istante
-                const observer = new MutationObserver(updateLogo);
-                observer.observe(document.body, {{ attributes: true, attributeFilter: ['style', 'class'] }});
+                if (!lightLogo || !darkLogo) return;
+
+                // Legge il colore di sfondo reale della pagina Streamlit
+                const bgColor = window.parent.getComputedStyle(parentDoc.body).backgroundColor;
+                const match = bgColor.match(/\\d+/g);
                 
-                updateLogo();
-                setTimeout(updateLogo, 100);
-            </script>
-        </body>
-        </html>
-        """
-        # Inseriamo il blocco HTML nella sidebar (con un'altezza fissa per evitare barre di scorrimento)
-        with _RAW_ST.sidebar:
-            components.html(html_logo, height=90)
+                if (match) {
+                    const r = parseInt(match[0]);
+                    const g = parseInt(match[1]);
+                    const b = parseInt(match[2]);
+                    
+                    // Calcola la luminosità (Luma) dello sfondo
+                    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                    
+                    // Luma < 128 significa che lo sfondo è scuro
+                    if (luma < 128) {
+                        lightLogo.style.display = 'none';
+                        darkLogo.style.display = 'block';
+                    } else {
+                        darkLogo.style.display = 'none';
+                        lightLogo.style.display = 'block';
+                    }
+                }
+            }
             
-    except Exception:
+            updateLogo();
+            setInterval(updateLogo, 500); // Controlla ogni mezzo secondo (impercettibile, non appesantisce)
+        </script>
+        """
+        components.html(js_theme_watcher, height=0, width=0)
+
+    except FileNotFoundError:
         _RAW_ST.sidebar.warning("Immagini del logo non trovate. Verifica i nomi dei file.")
+
 
     # --- 2. SELEZIONE LINGUA ---
     saved_language = _read_query_value('lang', 'it')
