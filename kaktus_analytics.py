@@ -4004,27 +4004,73 @@ def render_fleet_overview():
 if __name__ == '__main__':
     _RAW_ST.set_page_config(page_title="Water Partners Fleet Management", layout="wide")
 
-    # --- 1. LOGO DINAMICO NATIVO (In cima alla sidebar) ---
+    # --- SISTEMA DI LOGIN ---
+    if "logged_in" not in _RAW_ST.session_state:
+        _RAW_ST.session_state["logged_in"] = False
+        _RAW_ST.session_state["role"] = None
+
+    if not _RAW_ST.session_state["logged_in"]:
+        # Layout centrato per la schermata di login
+        col1, col2, col3 = _RAW_ST.columns([1, 1, 1])
+        with col2:
+            st.markdown("<br><br>", unsafe_allow_html=True) # Spazio dall'alto
+            
+            # Mostra il logo nella pagina di login
+            import base64
+            try:
+                with open("Logo v1.png", "rb") as f:
+                    logo_b64 = base64.b64encode(f.read()).decode()
+                _RAW_ST.markdown(f'<div style="text-align: center;"><img src="data:image/png;base64,{logo_b64}" width="250"></div><br>', unsafe_allow_html=True)
+            except:
+                pass
+            
+            _RAW_ST.markdown("<h3 style='text-align: center;'>Accesso Area Riservata</h3>", unsafe_allow_html=True)
+            
+            with _RAW_ST.form("login_form"):
+                username = _RAW_ST.text_input("Username")
+                password = _RAW_ST.text_input("Password", type="password")
+                submit_button = _RAW_ST.form_submit_button("Accedi", use_container_width=True, type="primary")
+            
+            if submit_button:
+                # ⚠️ NOTA: Per maggiore sicurezza futura, potrai spostare queste credenziali nel file st.secrets
+                utenti = {
+                    "admin": {"pw": "admin123", "role": "admin"},
+                    "guest": {"pw": "guest123", "role": "guest"}
+                }
+                
+                if username in utenti and password == utenti[username]["pw"]:
+                    _RAW_ST.session_state["logged_in"] = True
+                    _RAW_ST.session_state["role"] = utenti[username]["role"]
+                    _RAW_ST.rerun()
+                else:
+                    _RAW_ST.error("Username o password non validi.")
+        
+        # FERMA L'ESECUZIONE: nulla di ciò che c'è sotto verrà caricato senza login
+        _RAW_ST.stop() 
+
+    # --- PULSANTE DI LOGOUT (In cima alla sidebar) ---
+    if _RAW_ST.sidebar.button("🚪 Esci / Logout", use_container_width=True):
+        _RAW_ST.session_state["logged_in"] = False
+        _RAW_ST.session_state["role"] = None
+        _RAW_ST.rerun()
+
+    # --- 1. LOGO DINAMICO NATIVO (Nella sidebar) ---
     import base64
     import streamlit.components.v1 as components
 
     try:
-        # Converte i due loghi in testo Base64
         with open("Logo v1.png", "rb") as f:
             logo_light = base64.b64encode(f.read()).decode()
         with open("Logo v1_dark mode.png", "rb") as f:
             logo_dark = base64.b64encode(f.read()).decode()
         
-        # Inserisce le immagini DIRETTAMENTE nella sidebar (no iframe = dimensioni massime e perfette)
         _RAW_ST.sidebar.markdown(f"""
-            <div style="margin-top: -30px; margin-bottom: 20px; text-align: left;">
+            <div style="margin-top: -10px; margin-bottom: 20px; text-align: left;">
                 <img id="my-logo-light" src="data:image/png;base64,{logo_light}" style="width: 100%; max-width: 280px; display: none;">
                 <img id="my-logo-dark" src="data:image/png;base64,{logo_dark}" style="width: 100%; max-width: 280px; display: none;">
             </div>
         """, unsafe_allow_html=True)
 
-        # Inietta un micro-script invisibile che legge il colore REALE del tema di Streamlit 
-        # e accende il logo corretto (funziona anche se forzi il tema dalle impostazioni)
         js_theme_watcher = """
         <script>
             function updateLogo() {
@@ -4034,19 +4080,16 @@ if __name__ == '__main__':
                 
                 if (!lightLogo || !darkLogo) return;
 
-                // Legge il colore di sfondo reale della pagina Streamlit
                 const bgColor = window.parent.getComputedStyle(parentDoc.body).backgroundColor;
-                const match = bgColor.match(/\\d+/g);
+                const match = bgColor.match(/\d+/g);
                 
                 if (match) {
                     const r = parseInt(match[0]);
                     const g = parseInt(match[1]);
                     const b = parseInt(match[2]);
                     
-                    // Calcola la luminosità (Luma) dello sfondo
                     const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
                     
-                    // Luma < 128 significa che lo sfondo è scuro
                     if (luma < 128) {
                         lightLogo.style.display = 'none';
                         darkLogo.style.display = 'block';
@@ -4058,7 +4101,7 @@ if __name__ == '__main__':
             }
             
             updateLogo();
-            setInterval(updateLogo, 500); // Controlla ogni mezzo secondo (impercettibile, non appesantisce)
+            setInterval(updateLogo, 500); 
         </script>
         """
         components.html(js_theme_watcher, height=0, width=0)
