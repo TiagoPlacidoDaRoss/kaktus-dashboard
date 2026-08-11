@@ -2236,125 +2236,93 @@ def render_produzione_atm(impianto_scelto):
         )
 
     # ---------------------------------------------------------
-    # Medie di un intervallo personalizzato
+    # Confronto tra due periodi personalizzati (Side-by-side)
     # ---------------------------------------------------------
     st.markdown("---")
-    st.subheader("Medie giornaliere per periodo personalizzato")
+    st.subheader(ui_text("⚖️ Confronto periodi personalizzati", "⚖️ Custom period comparison"))
+    
+    # Calcolo dei default: Periodo A (ultimi 30 giorni), Periodo B (i 30 giorni ancora precedenti)
+    default_a_end = data_max
+    default_a_start = max(data_min, default_a_end - pd.Timedelta(days=29))
+    default_b_end = max(data_min, default_a_start - pd.Timedelta(days=1))
+    default_b_start = max(data_min, default_b_end - pd.Timedelta(days=29))
 
-    default_inizio = max(data_min, data_max - pd.Timedelta(days=29))
+    col_a, col_b = st.columns(2)
 
-    intervallo = st.date_input(
-        "Seleziona il periodo da analizzare:",
-        value=[default_inizio.date(), data_max.date()],
-        min_value=data_min.date(),
-        max_value=data_max.date(),
-        key="periodo_personalizzato_produzione_atm"
-    )
-
-    if isinstance(intervallo, (list, tuple)) and len(intervallo) == 2:
-        data_da = pd.Timestamp(intervallo[0]).normalize()
-        data_a = pd.Timestamp(intervallo[1]).normalize()
-
-        if data_da > data_a:
-            st.warning("La data iniziale deve precedere la data finale.")
-        else:
-            giorni_custom = max(1, (data_a - data_da).days + 1)
-
-            pdf_custom = (
-                df_pdf[
-                    (df_pdf["data_rif"] >= data_da)
-                    & (df_pdf["data_rif"] <= data_a)
-                ].copy()
-                if not df_pdf.empty
-                else pd.DataFrame()
-            )
-            atm_custom = (
-                df_atm[
-                    (df_atm["data_rif"] >= data_da)
-                    & (df_atm["data_rif"] <= data_a)
-                ].copy()
-                if not df_atm.empty
-                else pd.DataFrame()
+    def render_periodo_confronto(container, label_periodo, default_dates, key_suffix):
+        with container:
+            st.markdown(f"#### {label_periodo}")
+            intervallo = st.date_input(
+                ui_text("Seleziona il periodo da analizzare:", "Select the period to analyse:"),
+                value=default_dates,
+                min_value=data_min.date(),
+                max_value=data_max.date(),
+                key=f"periodo_personalizzato_produzione_atm_{key_suffix}"
             )
 
-            prod_custom, atm_custom_giorno = aggrega_giornaliero(
-                pdf_custom, atm_custom
-            )
-            giornaliero_custom = crea_calendario_giornaliero(
-                data_da, data_a, prod_custom, atm_custom_giorno
-            )
+            if isinstance(intervallo, (list, tuple)) and len(intervallo) == 2:
+                data_da = pd.Timestamp(intervallo[0]).normalize()
+                data_a = pd.Timestamp(intervallo[1]).normalize()
 
-            totale_prod_custom = totale_colonna(
-                giornaliero_custom, "permeato"
-            )
-            totale_conc_custom = totale_colonna(
-                giornaliero_custom, "concentrato"
-            )
-            totale_atm_custom_l = totale_colonna(
-                giornaliero_custom, "atm_litri"
-            )
-            totale_atm_custom_m3 = (
-                totale_atm_custom_l / 1000.0
-                if pd.notna(totale_atm_custom_l)
-                else np.nan
-            )
+                if data_da > data_a:
+                    st.warning(ui_text("La data iniziale deve precedere la data finale.", "Start date must precede end date."))
+                    return
+                
+                giorni_custom = max(1, (data_a - data_da).days + 1)
 
-            media_prod_custom = (
-                totale_prod_custom / giorni_custom
-                if pd.notna(totale_prod_custom)
-                else np.nan
-            )
-            media_atm_custom = (
-                totale_atm_custom_m3 / giorni_custom
-                if pd.notna(totale_atm_custom_m3)
-                else np.nan
-            )
-            media_conc_custom = (
-                totale_conc_custom / giorni_custom
-                if pd.notna(totale_conc_custom)
-                else np.nan
-            )
-
-            p1, p2, p3 = st.columns(3)
-            p1.metric(
-                "Media produzione nel periodo",
-                formatta_intero(media_prod_custom, "m³/giorno")
-            )
-            p2.metric(
-                "Media vendite ATM nel periodo",
-                formatta_intero(media_atm_custom, "m³/giorno")
-            )
-            p3.metric(
-                "Media concentrato nel periodo",
-                formatta_intero(media_conc_custom, "m³/giorno")
-            )
-
-            st.caption(
-                f"Periodo dal {data_da.strftime('%d/%m/%Y')} al "
-                f"{data_a.strftime('%d/%m/%Y')}: {giorni_custom} giorni di calendario."
-            )
-
-            st.markdown("#### Grafico del periodo selezionato")
-            if not serie_scelte:
-                st.info("Seleziona almeno una serie da visualizzare nel grafico.")
-            else:
-                fig_periodo = crea_grafico_barre(
-                    giornaliero_custom,
-                    serie_scelte,
-                    (
-                        "Volumi giornalieri — "
-                        f"{data_da.strftime('%d/%m/%Y')} – "
-                        f"{data_a.strftime('%d/%m/%Y')}"
-                    )
+                pdf_custom = (
+                    df_pdf[(df_pdf["data_rif"] >= data_da) & (df_pdf["data_rif"] <= data_a)].copy()
+                    if not df_pdf.empty else pd.DataFrame()
                 )
-                if fig_periodo is not None:
-                    st.plotly_chart(
-                        fig_periodo,
-                        use_container_width=True,
-                        key="grafico_periodo_personalizzato"
+                atm_custom = (
+                    df_atm[(df_atm["data_rif"] >= data_da) & (df_atm["data_rif"] <= data_a)].copy()
+                    if not df_atm.empty else pd.DataFrame()
+                )
+
+                prod_custom, atm_custom_giorno = aggrega_giornaliero(pdf_custom, atm_custom)
+                giornaliero_custom = crea_calendario_giornaliero(data_da, data_a, prod_custom, atm_custom_giorno)
+
+                totale_prod_custom = totale_colonna(giornaliero_custom, "permeato")
+                totale_conc_custom = totale_colonna(giornaliero_custom, "concentrato")
+                totale_atm_custom_l = totale_colonna(giornaliero_custom, "atm_litri")
+                totale_atm_custom_m3 = (totale_atm_custom_l / 1000.0 if pd.notna(totale_atm_custom_l) else np.nan)
+
+                media_prod_custom = (totale_prod_custom / giorni_custom if pd.notna(totale_prod_custom) else np.nan)
+                media_atm_custom = (totale_atm_custom_m3 / giorni_custom if pd.notna(totale_atm_custom_m3) else np.nan)
+                media_conc_custom = (totale_conc_custom / giorni_custom if pd.notna(totale_conc_custom) else np.nan)
+
+                p1, p2, p3 = st.columns(3)
+                p1.metric(ui_text("Media Prod.", "Avg Prod."), formatta_intero(media_prod_custom, ui_text("m³/g", "m³/d")))
+                p2.metric(ui_text("Media Vendite", "Avg Sales"), formatta_intero(media_atm_custom, ui_text("m³/g", "m³/d")))
+                p3.metric(ui_text("Media Conc.", "Avg Conc."), formatta_intero(media_conc_custom, ui_text("m³/g", "m³/d")))
+
+                st.caption(
+                    ui_text(f"Dal {data_da.strftime('%d/%m/%Y')} al {data_a.strftime('%d/%m/%Y')} ({giorni_custom} gg)", 
+                            f"From {data_da.strftime('%d/%m/%Y')} to {data_a.strftime('%d/%m/%Y')} ({giorni_custom} days)")
+                )
+
+                if not serie_scelte:
+                    st.info(ui_text("Seleziona almeno una serie nel menu in alto.", "Select at least one series in the top menu."))
+                else:
+                    fig_periodo = crea_grafico_barre(
+                        giornaliero_custom,
+                        serie_scelte,
+                        ui_text("Volumi giornalieri", "Daily volumes")
                     )
-    else:
-        st.info("Seleziona una data iniziale e una data finale.")
+                    if fig_periodo is not None:
+                        # Ottimizziamo l'altezza e i margini per la visualizzazione a due colonne
+                        fig_periodo.update_layout(height=350, margin=dict(l=10, r=10, t=40, b=10))
+                        st.plotly_chart(
+                            fig_periodo,
+                            use_container_width=True,
+                            key=f"grafico_periodo_personalizzato_{key_suffix}"
+                        )
+            else:
+                st.info(ui_text("Seleziona una data iniziale e una data finale.", "Select a start date and an end date."))
+
+    # Disegniamo i due riquadri affiancati
+    render_periodo_confronto(col_a, ui_text("Periodo A", "Period A"), [default_a_start.date(), default_a_end.date()], "A")
+    render_periodo_confronto(col_b, ui_text("Periodo B", "Period B"), [default_b_start.date(), default_b_end.date()], "B")
 
     # ---------------------------------------------------------
     # Grafico mensile
