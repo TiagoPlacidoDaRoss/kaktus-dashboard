@@ -4129,7 +4129,13 @@ if __name__ == '__main__':
     if _RAW_ST.sidebar.button("🚪 Esci / Logout", use_container_width=True):
         _RAW_ST.session_state["logged_in"] = False
         _RAW_ST.session_state["role"] = None
-        cookie_manager.delete("monitora_auth") # Distrugge il cookie
+        
+        # Prova a distruggere il cookie, se non esiste ignora l'errore
+        try:
+            cookie_manager.delete("monitora_auth")
+        except KeyError:
+            pass 
+            
         _RAW_ST.rerun()
 
     # --- 2. SELEZIONE LINGUA ---
