@@ -3985,6 +3985,79 @@ def render_fleet_overview():
 if __name__ == '__main__':
     _RAW_ST.set_page_config(page_title="Water Partners Fleet Management", layout="wide")
 
+    # --- 1. LOGO DINAMICO IN CIMA ALLA SIDEBAR ---
+    import base64
+    import streamlit.components.v1 as components
+
+    try:
+        # Leggiamo le immagini e le convertiamo in testo (Base64) per iniettarle nell'HTML
+        with open("Logo v1.png", "rb") as f:
+            logo_light = base64.b64encode(f.read()).decode()
+        with open("Logo v1_dark mode.png", "rb") as f:
+            logo_dark = base64.b64encode(f.read()).decode()
+        
+        html_logo = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <style>
+            body {{
+                margin: 0;
+                padding: 0;
+                background-color: transparent;
+                display: flex;
+                align-items: center;
+                justify-content: flex-start; /* Allinea a sinistra */
+            }}
+            img {{
+                width: 100%;
+                max-width: 250px;
+                max-height: 85px;
+                object-fit: contain;
+            }}
+        </style>
+        </head>
+        <body>
+            <img id="logo" src="data:image/png;base64,{logo_light}">
+            <script>
+                function updateLogo() {{
+                    // Legge il colore del testo che Streamlit applica automaticamente
+                    const color = window.getComputedStyle(document.body).color;
+                    const match = color.match(/\d+/g);
+                    if (match) {{
+                        const r = parseInt(match[0]);
+                        const g = parseInt(match[1]);
+                        const b = parseInt(match[2]);
+                        // Calcola la luminosità del testo
+                        const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                        
+                        // Se il testo è chiaro (luma > 128), lo sfondo è scuro -> Mostra logo Dark
+                        if (luma > 128) {{
+                            document.getElementById('logo').src = "data:image/png;base64,{logo_dark}";
+                        }} else {{
+                            document.getElementById('logo').src = "data:image/png;base64,{logo_light}";
+                        }}
+                    }}
+                }}
+                
+                // Resta in ascolto: se cambi tema dal menu in alto a destra, cambia il logo all'istante
+                const observer = new MutationObserver(updateLogo);
+                observer.observe(document.body, {{ attributes: true, attributeFilter: ['style', 'class'] }});
+                
+                updateLogo();
+                setTimeout(updateLogo, 100);
+            </script>
+        </body>
+        </html>
+        """
+        # Inseriamo il blocco HTML nella sidebar (con un'altezza fissa per evitare barre di scorrimento)
+        with _RAW_ST.sidebar:
+            components.html(html_logo, height=90)
+            
+    except Exception:
+        _RAW_ST.sidebar.warning("Immagini del logo non trovate. Verifica i nomi dei file.")
+
+    # --- 2. SELEZIONE LINGUA ---
     saved_language = _read_query_value('lang', 'it')
     english_enabled = _RAW_ST.sidebar.toggle(
         "🇬🇧 English",
@@ -3996,51 +4069,7 @@ if __name__ == '__main__':
     _write_query_values(lang=UI_LANGUAGE)
     st = _TranslatedStreamlit(_RAW_ST)
 
-    # --- NUOVA SEZIONE LOGO ---
-    # Sostituisce l'icona del mondo con i tuoi loghi ufficiali
-    # Usa st.sidebar.image per una visualizzazione ottimale nella colonna laterale
-    
-    # Rileva dinamicamente il tema tramite un piccolo hack CSS e base64, 
-    # oppure più semplicemente, usa un blocco HTML dinamico di Streamlit
-    st.sidebar.markdown(
-        """
-        <style>
-            [data-testid="stSidebar"] {
-                padding-top: 1rem;
-            }
-            .logo-light { display: block; }
-            .logo-dark { display: none; }
-            
-            @media (prefers-color-scheme: dark) {
-                .logo-light { display: none; }
-                .logo-dark { display: block; }
-            }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-    import base64
-    def get_base64_of_bin_file(bin_file):
-        with open(bin_file, 'rb') as f:
-            data = f.read()
-        return base64.b64encode(data).decode()
-
-    try:
-        logo_light_base64 = get_base64_of_bin_file("Logo v1.png")
-        logo_dark_base64 = get_base64_of_bin_file("Logo v1_dark mode.png")
-        
-        st.sidebar.markdown(
-            f"""
-            <img src="data:image/png;base64,{logo_light_base64}" class="logo-light" style="width: 100%; max-width: 250px; margin-bottom: 20px;">
-            <img src="data:image/png;base64,{logo_dark_base64}" class="logo-dark" style="width: 100%; max-width: 250px; margin-bottom: 20px;">
-            """,
-            unsafe_allow_html=True
-        )
-    except FileNotFoundError:
-        st.sidebar.warning("Immagini del logo non trovate. Verifica i nomi dei file.")
-
-    st.sidebar.title("Gestione Flotta")
+    st.sidebar.title(ui_text("Gestione Flotta", "Fleet Management"))
 
     plant_options = [FLEET_OVERVIEW_KEY] + list(CONFIG_IMPIANTI.keys())
     saved_plant = _read_query_value('plant', FLEET_OVERVIEW_KEY)
