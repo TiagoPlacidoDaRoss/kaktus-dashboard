@@ -4008,8 +4008,7 @@ if __name__ == '__main__':
     import extra_streamlit_components as stx
     import datetime
 
-    # Inizializza il gestore dei cookie direttamente ad ogni ricaricamento
-    # (le nuove versioni di Streamlit vietano di metterlo in cache)
+    # Inizializza il gestore dei cookie
     cookie_manager = stx.CookieManager()
 
     # --- SISTEMA DI LOGIN ---
@@ -4017,8 +4016,8 @@ if __name__ == '__main__':
         _RAW_ST.session_state["logged_in"] = False
         _RAW_ST.session_state["role"] = None
 
-    # Tenta l'auto-login in background leggendo il cookie
-    if not _RAW_ST.session_state["logged_in"]:
+    # Tenta l'auto-login, MA SOLO se non abbiamo appena cliccato su "Esci"
+    if not _RAW_ST.session_state["logged_in"] and not _RAW_ST.session_state.get("logout_clicked", False):
         auth_cookie = cookie_manager.get(cookie="monitora_auth")
         if auth_cookie in ["admin", "guest"]:
             _RAW_ST.session_state["logged_in"] = True
@@ -4048,7 +4047,7 @@ if __name__ == '__main__':
                 submit_button = _RAW_ST.form_submit_button("Accedi", use_container_width=True, type="primary")
             
             if submit_button:
-                # ⚠️ Credenziali (in futuro si possono spostare su file st.secrets)
+                # ⚠️ Credenziali
                 utenti = {
                     "admin": {"pw": "admin123", "role": "admin"},
                     "guest": {"pw": "guest123", "role": "guest"}
@@ -4057,9 +4056,9 @@ if __name__ == '__main__':
                 if username in utenti and password == utenti[username]["pw"]:
                     _RAW_ST.session_state["logged_in"] = True
                     _RAW_ST.session_state["role"] = utenti[username]["role"]
+                    _RAW_ST.session_state["logout_clicked"] = False # Abbassa la bandierina di blocco
                     
                     if ricordami:
-                        # Salva un cookie silenzioso valido per 30 giorni
                         scadenza = datetime.datetime.now() + datetime.timedelta(days=30)
                         cookie_manager.set("monitora_auth", utenti[username]["role"], expires_at=scadenza)
                         
@@ -4067,7 +4066,6 @@ if __name__ == '__main__':
                 else:
                     _RAW_ST.error("Username o password non validi.")
         
-        # Ferma il codice: non fa vedere nulla se non si è loggati
         _RAW_ST.stop() 
 
     # --- 1. LOGO DINAMICO NATIVO (In cima alla sidebar) ---
@@ -4129,10 +4127,10 @@ if __name__ == '__main__':
     if _RAW_ST.sidebar.button("🚪 Esci / Logout", use_container_width=True):
         _RAW_ST.session_state["logged_in"] = False
         _RAW_ST.session_state["role"] = None
+        _RAW_ST.session_state["logout_clicked"] = True # Alza la bandierina per bloccare l'auto-login
         
-        # Prova a distruggere il cookie, se non esiste ignora l'errore
         try:
-            cookie_manager.delete("monitora_auth")
+            cookie_manager.delete("monitora_auth") 
         except KeyError:
             pass 
             
