@@ -3260,10 +3260,7 @@ def render_report(impianto_scelto, config_attuale, df_ro_raw, df_uf, df_nas):
     if config_attuale.get("has_uf") or config_attuale.get("has_bag_filters"):
         available_sections.append("UF e filtri")
     available_sections.append("Motori e pompe")
-
-    if "Kaktus" in impianto_scelto:
-        available_sections.append("Qualità Acqua")
-
+    available_sections.append("Qualità Acqua")
     available_sections.append("Tabella giornaliera")
     default_sections = [section for section in ["Produzione e vendite", "Performance RO", "UF e filtri", "Motori e pompe"] if section in available_sections]
     selected_sections = st.multiselect(
