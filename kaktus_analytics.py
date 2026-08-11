@@ -4008,12 +4008,9 @@ if __name__ == '__main__':
     import extra_streamlit_components as stx
     import datetime
 
-    # Ottiene il gestore dei cookie dal browser
-    @_RAW_ST.cache_resource
-    def get_cookie_manager():
-        return stx.CookieManager()
-    
-    cookie_manager = get_cookie_manager()
+    # Inizializza il gestore dei cookie direttamente ad ogni ricaricamento
+    # (le nuove versioni di Streamlit vietano di metterlo in cache)
+    cookie_manager = stx.CookieManager()
 
     # --- SISTEMA DI LOGIN ---
     if "logged_in" not in _RAW_ST.session_state:
