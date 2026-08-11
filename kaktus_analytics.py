@@ -3996,7 +3996,50 @@ if __name__ == '__main__':
     _write_query_values(lang=UI_LANGUAGE)
     st = _TranslatedStreamlit(_RAW_ST)
 
-    st.sidebar.image("https://img.icons8.com/color/96/000000/globe.png", width=60)
+    # --- NUOVA SEZIONE LOGO ---
+    # Sostituisce l'icona del mondo con i tuoi loghi ufficiali
+    # Usa st.sidebar.image per una visualizzazione ottimale nella colonna laterale
+    
+    # Rileva dinamicamente il tema tramite un piccolo hack CSS e base64, 
+    # oppure più semplicemente, usa un blocco HTML dinamico di Streamlit
+    st.sidebar.markdown(
+        """
+        <style>
+            [data-testid="stSidebar"] {
+                padding-top: 1rem;
+            }
+            .logo-light { display: block; }
+            .logo-dark { display: none; }
+            
+            @media (prefers-color-scheme: dark) {
+                .logo-light { display: none; }
+                .logo-dark { display: block; }
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    import base64
+    def get_base64_of_bin_file(bin_file):
+        with open(bin_file, 'rb') as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+
+    try:
+        logo_light_base64 = get_base64_of_bin_file("Logo v1.png")
+        logo_dark_base64 = get_base64_of_bin_file("Logo v1_dark mode.png")
+        
+        st.sidebar.markdown(
+            f"""
+            <img src="data:image/png;base64,{logo_light_base64}" class="logo-light" style="width: 100%; max-width: 250px; margin-bottom: 20px;">
+            <img src="data:image/png;base64,{logo_dark_base64}" class="logo-dark" style="width: 100%; max-width: 250px; margin-bottom: 20px;">
+            """,
+            unsafe_allow_html=True
+        )
+    except FileNotFoundError:
+        st.sidebar.warning("Immagini del logo non trovate. Verifica i nomi dei file.")
+
     st.sidebar.title("Gestione Flotta")
 
     plant_options = [FLEET_OVERVIEW_KEY] + list(CONFIG_IMPIANTI.keys())
