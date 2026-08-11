@@ -4048,13 +4048,7 @@ if __name__ == '__main__':
         # FERMA L'ESECUZIONE: nulla di ciò che c'è sotto verrà caricato senza login
         _RAW_ST.stop() 
 
-    # --- PULSANTE DI LOGOUT (In cima alla sidebar) ---
-    if _RAW_ST.sidebar.button("🚪 Esci / Logout", use_container_width=True):
-        _RAW_ST.session_state["logged_in"] = False
-        _RAW_ST.session_state["role"] = None
-        _RAW_ST.rerun()
-
-    # --- 1. LOGO DINAMICO NATIVO (Nella sidebar) ---
+    # --- 1. LOGO DINAMICO NATIVO (In cima alla sidebar) ---
     import base64
     import streamlit.components.v1 as components
 
@@ -4081,7 +4075,7 @@ if __name__ == '__main__':
                 if (!lightLogo || !darkLogo) return;
 
                 const bgColor = window.parent.getComputedStyle(parentDoc.body).backgroundColor;
-                const match = bgColor.match(/\d+/g);
+                const match = bgColor.match(/\\d+/g);
                 
                 if (match) {
                     const r = parseInt(match[0]);
@@ -4109,6 +4103,11 @@ if __name__ == '__main__':
     except FileNotFoundError:
         _RAW_ST.sidebar.warning("Immagini del logo non trovate. Verifica i nomi dei file.")
 
+    # --- PULSANTE DI LOGOUT (Sotto il logo) ---
+    if _RAW_ST.sidebar.button("🚪 Esci / Logout", use_container_width=True):
+        _RAW_ST.session_state["logged_in"] = False
+        _RAW_ST.session_state["role"] = None
+        _RAW_ST.rerun()
 
     # --- 2. SELEZIONE LINGUA ---
     saved_language = _read_query_value('lang', 'it')
