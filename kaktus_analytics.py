@@ -4004,18 +4004,36 @@ def render_fleet_overview():
 if __name__ == '__main__':
     _RAW_ST.set_page_config(page_title="Water Partners Fleet Management", layout="wide")
 
+    # --- INIZIALIZZAZIONE COOKIE MANAGER ---
+    import extra_streamlit_components as stx
+    import datetime
+
+    # Ottiene il gestore dei cookie dal browser
+    @_RAW_ST.cache_resource
+    def get_cookie_manager():
+        return stx.CookieManager()
+    
+    cookie_manager = get_cookie_manager()
+
     # --- SISTEMA DI LOGIN ---
     if "logged_in" not in _RAW_ST.session_state:
         _RAW_ST.session_state["logged_in"] = False
         _RAW_ST.session_state["role"] = None
 
+    # Tenta l'auto-login in background leggendo il cookie
     if not _RAW_ST.session_state["logged_in"]:
-        # Layout centrato per la schermata di login
+        auth_cookie = cookie_manager.get(cookie="monitora_auth")
+        if auth_cookie in ["admin", "guest"]:
+            _RAW_ST.session_state["logged_in"] = True
+            _RAW_ST.session_state["role"] = auth_cookie
+            _RAW_ST.rerun()
+
+    # Se ancora non loggato, mostra la schermata
+    if not _RAW_ST.session_state["logged_in"]:
         col1, col2, col3 = _RAW_ST.columns([1, 1, 1])
         with col2:
-            st.markdown("<br><br>", unsafe_allow_html=True) # Spazio dall'alto
+            _RAW_ST.markdown("<br><br>", unsafe_allow_html=True)
             
-            # Mostra il logo nella pagina di login
             import base64
             try:
                 with open("Logo v1.png", "rb") as f:
@@ -4029,10 +4047,11 @@ if __name__ == '__main__':
             with _RAW_ST.form("login_form"):
                 username = _RAW_ST.text_input("Username")
                 password = _RAW_ST.text_input("Password", type="password")
+                ricordami = _RAW_ST.checkbox("Ricordami su questo dispositivo", value=True)
                 submit_button = _RAW_ST.form_submit_button("Accedi", use_container_width=True, type="primary")
             
             if submit_button:
-                # ⚠️ NOTA: Per maggiore sicurezza futura, potrai spostare queste credenziali nel file st.secrets
+                # ⚠️ Credenziali (in futuro si possono spostare su file st.secrets)
                 utenti = {
                     "admin": {"pw": "admin123", "role": "admin"},
                     "guest": {"pw": "guest123", "role": "guest"}
@@ -4041,11 +4060,17 @@ if __name__ == '__main__':
                 if username in utenti and password == utenti[username]["pw"]:
                     _RAW_ST.session_state["logged_in"] = True
                     _RAW_ST.session_state["role"] = utenti[username]["role"]
+                    
+                    if ricordami:
+                        # Salva un cookie silenzioso valido per 30 giorni
+                        scadenza = datetime.datetime.now() + datetime.timedelta(days=30)
+                        cookie_manager.set("monitora_auth", utenti[username]["role"], expires_at=scadenza)
+                        
                     _RAW_ST.rerun()
                 else:
                     _RAW_ST.error("Username o password non validi.")
         
-        # FERMA L'ESECUZIONE: nulla di ciò che c'è sotto verrà caricato senza login
+        # Ferma il codice: non fa vedere nulla se non si è loggati
         _RAW_ST.stop() 
 
     # --- 1. LOGO DINAMICO NATIVO (In cima alla sidebar) ---
@@ -4103,10 +4128,11 @@ if __name__ == '__main__':
     except FileNotFoundError:
         _RAW_ST.sidebar.warning("Immagini del logo non trovate. Verifica i nomi dei file.")
 
-    # --- PULSANTE DI LOGOUT (Sotto il logo) ---
+    # --- PULSANTE DI LOGOUT ---
     if _RAW_ST.sidebar.button("🚪 Esci / Logout", use_container_width=True):
         _RAW_ST.session_state["logged_in"] = False
         _RAW_ST.session_state["role"] = None
+        cookie_manager.delete("monitora_auth") # Distrugge il cookie
         _RAW_ST.rerun()
 
     # --- 2. SELEZIONE LINGUA ---
